@@ -2,6 +2,7 @@
 // @version 1.5.2 - Pass 'source' property in componentAdded/entityUpdated events.
 // @previous 1.5.1 - Fixed ReferenceError in event emission within addComponent.
 
+import * as logger from '../utils/logger.js';
 import { TransformComponent } from '../components/transform-component.js';
 import { Component } from './component.js';
 import { ComponentRegistry } from './component-registry.js';
@@ -52,14 +53,14 @@ export class EntityManager {
             id++;
             // Prevent potential infinite loop in extreme edge cases
             if (id > Number.MAX_SAFE_INTEGER) {
-                 console.error("[EM CreateEntity] Reached maximum safe integer for entity IDs!");
+                 logger.error("[EM CreateEntity] Reached maximum safe integer for entity IDs!");
                  throw new Error("Maximum entity ID reached.");
             }
          }
         this.nextEntityId = id + 1;
         this.entities.add(id);
         this.entityComponents.set(id, new Map());
-        // console.log(`[EM] Created Entity: ${id}. Next ID: ${this.nextEntityId}`);
+        // logger.log(`[EM] Created Entity: ${id}. Next ID: ${this.nextEntityId}`);
         return id;
     }
 
@@ -72,16 +73,16 @@ export class EntityManager {
     removeEntity(entityId) {
         // --- Validation ---
         if (typeof entityId !== 'number' || !isFinite(entityId)) {
-            console.warn(`[EM RemoveEntity] Invalid entity ID type provided: ${entityId}. Removal aborted.`);
+            logger.warn(`[EM RemoveEntity] Invalid entity ID type provided: ${entityId}. Removal aborted.`);
             return false;
         }
 
         if (!this.hasEntity(entityId)) {
-             // console.warn(`[EM RemoveEntity] Attempted to remove non-existent entity: ${entityId}`);
+             // logger.warn(`[EM RemoveEntity] Attempted to remove non-existent entity: ${entityId}`);
              return false;
         }
 
-        // console.log(`[EM] Attempting removal of Entity: ${entityId}`); // Keep commented unless debugging removal
+        // logger.log(`[EM] Attempting removal of Entity: ${entityId}`); // Keep commented unless debugging removal
 
         try {
             // Hierarchy cleanup: Remove self from parent, recursively remove children
@@ -92,7 +93,7 @@ export class EntityManager {
                  if (parentId !== null) {
                       // Pass source for hierarchy change during removal
                       if (!this.setParent(entityId, null, 'removeEntityCleanup')) {
-                           console.warn(`[EM Remove ${entityId}] setParent(null) failed during removal. Parent link might be inconsistent.`);
+                           logger.warn(`[EM Remove ${entityId}] setParent(null) failed during removal. Parent link might be inconsistent.`);
                       }
                  }
 
@@ -102,11 +103,11 @@ export class EntityManager {
                      try {
                           if (this.hasEntity(childId)) {
                                if (!this.removeEntity(childId)) { // Recursive call
-                                    console.warn(`[EM Remove ${entityId}] Recursive removal of child ${childId} returned false.`);
+                                    logger.warn(`[EM Remove ${entityId}] Recursive removal of child ${childId} returned false.`);
                                }
                           }
                      } catch (childError) {
-                         console.error(`[EM Remove ${entityId}] CRITICAL ERROR removing child entity ${childId}:`, childError);
+                         logger.error(`[EM Remove ${entityId}] CRITICAL ERROR removing child entity ${childId}:`, childError);
                      }
                  }
                  transform.children.clear();
@@ -122,7 +123,7 @@ export class EntityManager {
                     try {
                         component?.onRemove?.();
                     } catch(e) {
-                        console.error(`[EM Remove ${entityId}] Error in onRemove() for component '${type}':`, e);
+                        logger.error(`[EM Remove ${entityId}] Error in onRemove() for component '${type}':`, e);
                     }
                     this._removeComponentFromEntityMap(entityId, type);
                 }
@@ -132,13 +133,13 @@ export class EntityManager {
             this.entityComponents.delete(entityId);
             this.entities.delete(entityId);
 
-            // console.log(`[EM] Successfully removed Entity: ${entityId}`); // Keep commented unless debugging removal
+            // logger.log(`[EM] Successfully removed Entity: ${entityId}`); // Keep commented unless debugging removal
             this.eventEmitter?.emit('entityRemoved', { id: entityId });
             return true;
 
         } catch (error) {
-            console.error(`[EM] CRITICAL ERROR during removeEntity(${entityId}):`, error);
-            console.warn(`[EM Remove ${entityId}] Attempting forceful cleanup after error...`);
+            logger.error(`[EM] CRITICAL ERROR during removeEntity(${entityId}):`, error);
+            logger.warn(`[EM Remove ${entityId}] Attempting forceful cleanup after error...`);
             this.entityComponents.delete(entityId);
             this.entities.delete(entityId);
             this._cleanupEntityFromComponentMap(entityId);
@@ -167,21 +168,21 @@ export class EntityManager {
     addComponent(entityId, componentType, data = {}) {
         // --- Validation ---
         if (typeof entityId !== 'number' || !isFinite(entityId)) {
-            console.error(`[EM AddComponent] Invalid entity ID type: ${entityId}.`);
+            logger.error(`[EM AddComponent] Invalid entity ID type: ${entityId}.`);
             return null;
         }
         if (typeof componentType !== 'string' || componentType.trim() === '') {
-             console.error(`[EM AddComponent ${entityId}] Invalid component type: '${componentType}'. Must be non-empty string.`);
+             logger.error(`[EM AddComponent ${entityId}] Invalid component type: '${componentType}'. Must be non-empty string.`);
              return null;
         }
         if (typeof data !== 'object' || data === null) {
-             console.warn(`[EM AddComponent ${entityId}] Invalid data provided for component '${componentType}'. Expected object, got:`, data, `. Using empty object.`);
+             logger.warn(`[EM AddComponent ${entityId}] Invalid data provided for component '${componentType}'. Expected object, got:`, data, `. Using empty object.`);
              data = {};
         }
 
-        if (!this.hasEntity(entityId)) { console.error(`[EM AddComponent ${entityId}] Cannot add component '${componentType}' to non-existent entity.`); return null; }
+        if (!this.hasEntity(entityId)) { logger.error(`[EM AddComponent ${entityId}] Cannot add component '${componentType}' to non-existent entity.`); return null; }
         const ComponentConstructor = this.componentRegistry.get(componentType);
-        if (!ComponentConstructor) { console.error(`[EM AddComponent ${entityId}] Component type '${componentType}' not registered.`); return null; }
+        if (!ComponentConstructor) { logger.error(`[EM AddComponent ${entityId}] Component type '${componentType}' not registered.`); return null; }
 
         let component = this.getComponent(entityId, componentType);
         const isNewComponent = !component;
@@ -198,7 +199,7 @@ export class EntityManager {
                 // Pass cleaned data without 'source'
                 component = new ComponentConstructor(componentData);
                 if (!(component instanceof Component)) {
-                    console.error(`[EM AddComponent ${entityId}] Constructor for '${componentType}' did not return an instance of Component.`);
+                    logger.error(`[EM AddComponent ${entityId}] Constructor for '${componentType}' did not return an instance of Component.`);
                     return null;
                 }
                 this.entityComponents.get(entityId)?.set(componentType, component);
@@ -213,7 +214,7 @@ export class EntityManager {
                          continue;
                     }
                     if (componentType === 'transform' && key === 'children') {
-                         console.warn(`[EM AddComponent ${entityId}] Attempted to set 'children' property directly on TransformComponent via data. Use setParent.`);
+                         logger.warn(`[EM AddComponent ${entityId}] Attempted to set 'children' property directly on TransformComponent via data. Use setParent.`);
                          continue;
                     }
 
@@ -230,14 +231,14 @@ export class EntityManager {
                                  component[key] = newValue;
                              }
                          } else {
-                              console.warn(`[EM AddComponent ${entityId}] Property '${key}' does not exist on component instance '${componentType}'. Update skipped.`);
+                              logger.warn(`[EM AddComponent ${entityId}] Property '${key}' does not exist on component instance '${componentType}'. Update skipped.`);
                          }
                     }
                 }
                  component.onUpdate?.(componentData); // Pass cleaned data
             }
         } catch (e) {
-            console.error(`[EM AddComponent ${entityId}] Error constructing or updating component '${componentType}':`, e);
+            logger.error(`[EM AddComponent ${entityId}] Error constructing or updating component '${componentType}':`, e);
             if (isNewComponent && component) {
                 this.entityComponents.get(entityId)?.delete(componentType);
                 this._removeComponentFromEntityMap(entityId, componentType);
@@ -250,10 +251,10 @@ export class EntityManager {
              try {
                  // Pass source for hierarchy change
                  if (!this.setParent(entityId, targetParent, source)) {
-                     console.warn(`[EM AddComponent ${entityId}] setParent failed for target parent ${targetParent}.`);
+                     logger.warn(`[EM AddComponent ${entityId}] setParent failed for target parent ${targetParent}.`);
                  }
              } catch (setParentError) {
-                 console.error(`[EM AddComponent ${entityId}] Error calling setParent:`, setParentError);
+                 logger.error(`[EM AddComponent ${entityId}] Error calling setParent:`, setParentError);
              }
         }
 
@@ -275,18 +276,18 @@ export class EntityManager {
     removeComponent(entityId, componentType) {
         // --- Validation ---
         if (typeof entityId !== 'number' || !isFinite(entityId)) {
-            console.warn(`[EM RemoveComponent] Invalid entity ID type: ${entityId}.`);
+            logger.warn(`[EM RemoveComponent] Invalid entity ID type: ${entityId}.`);
             return false;
         }
         if (typeof componentType !== 'string' || componentType.trim() === '') {
-             console.warn(`[EM RemoveComponent ${entityId}] Invalid component type: '${componentType}'.`);
+             logger.warn(`[EM RemoveComponent ${entityId}] Invalid component type: '${componentType}'.`);
              return false;
         }
 
-        if (!this.hasEntity(entityId)) { console.warn(`[EM RemoveComponent ${entityId}] Entity not found.`); return false; }
+        if (!this.hasEntity(entityId)) { logger.warn(`[EM RemoveComponent ${entityId}] Entity not found.`); return false; }
         const components = this.entityComponents.get(entityId);
         if (!components?.has(componentType)) {
-            // console.log(`[EM RemoveComponent ${entityId}] Component '${componentType}' not found on entity.`);
+            // logger.log(`[EM RemoveComponent ${entityId}] Component '${componentType}' not found on entity.`);
             return false;
         }
 
@@ -300,7 +301,7 @@ export class EntityManager {
                     if (this.hasEntity(childId)) {
                          // Pass source for hierarchy change during removal
                          if (!this.setParent(childId, null, 'removeComponentCleanup')) {
-                              console.warn(`[EM RemoveComponent ${entityId}] Failed to set child ${childId} parent to null.`);
+                              logger.warn(`[EM RemoveComponent ${entityId}] Failed to set child ${childId} parent to null.`);
                          }
                     }
                 });
@@ -312,7 +313,7 @@ export class EntityManager {
             }
             component?.onRemove?.();
         } catch(e) {
-            console.error(`[EM RemoveComponent ${entityId}] Error during onRemove/hierarchy cleanup for '${componentType}':`, e);
+            logger.error(`[EM RemoveComponent ${entityId}] Error during onRemove/hierarchy cleanup for '${componentType}':`, e);
         }
 
         // Remove component from maps
@@ -330,8 +331,8 @@ export class EntityManager {
     getComponent(entityId, componentType) { return this.hasEntity(entityId) ? this.entityComponents.get(entityId)?.get(componentType) || null : null; }
     hasComponent(entityId, componentType) { return this.hasEntity(entityId) ? this.entityComponents.get(entityId)?.has(componentType) ?? false : false; }
     getComponents(entityId) { if (!this.hasEntity(entityId)) return []; const map = this.entityComponents.get(entityId); return map ? Array.from(map.values()) : []; }
-    getEntitiesWithComponent(componentType) { if (typeof componentType !== 'string' || componentType.trim() === '') { console.warn(`[EM GetEntitiesWithComponent] Invalid component type: '${componentType}'.`); return []; } return Array.from(this.componentEntityMap.get(componentType) || []); }
-    getEntitiesWithComponents(componentTypes) { if (!Array.isArray(componentTypes)) { console.warn("[EM GetEntitiesWithComponents] Input must be an array of component type strings."); return []; } if (componentTypes.length === 0) return Array.from(this.entities); if (!componentTypes.every(type => typeof type === 'string' && type.trim() !== '')) { console.warn("[EM GetEntitiesWithComponents] Input array contains invalid component type strings."); return []; } let smallestSet = null; let smallestSize = Infinity; for (const type of componentTypes) { const set = this.componentEntityMap.get(type); if (!set || set.size === 0) return []; if (set.size < smallestSize) { smallestSize = set.size; smallestSet = set; } } return smallestSet ? Array.from(smallestSet).filter(id => componentTypes.every(type => this.hasComponent(id, type))) : []; }
+    getEntitiesWithComponent(componentType) { if (typeof componentType !== 'string' || componentType.trim() === '') { logger.warn(`[EM GetEntitiesWithComponent] Invalid component type: '${componentType}'.`); return []; } return Array.from(this.componentEntityMap.get(componentType) || []); }
+    getEntitiesWithComponents(componentTypes) { if (!Array.isArray(componentTypes)) { logger.warn("[EM GetEntitiesWithComponents] Input must be an array of component type strings."); return []; } if (componentTypes.length === 0) return Array.from(this.entities); if (!componentTypes.every(type => typeof type === 'string' && type.trim() !== '')) { logger.warn("[EM GetEntitiesWithComponents] Input array contains invalid component type strings."); return []; } let smallestSet = null; let smallestSize = Infinity; for (const type of componentTypes) { const set = this.componentEntityMap.get(type); if (!set || set.size === 0) return []; if (set.size < smallestSize) { smallestSize = set.size; smallestSet = set; } } return smallestSet ? Array.from(smallestSet).filter(id => componentTypes.every(type => this.hasComponent(id, type))) : []; }
 
 
     /**
@@ -344,26 +345,26 @@ export class EntityManager {
      */
     setParent(entityId, newParentId, source = 'setParent') { // Added source parameter
         // --- Validation ---
-        if (typeof entityId !== 'number' || !isFinite(entityId)) { console.error(`[EM SetParent ${entityId}] Invalid child entity ID type.`); return false; }
-        if (newParentId !== null && (typeof newParentId !== 'number' || !isFinite(newParentId))) { console.error(`[EM SetParent ${entityId}] Invalid parent entity ID type: ${newParentId}. Must be number or null.`); return false; }
-        if (!this.hasEntity(entityId)) { console.error(`[EM SetParent ${entityId}] Child entity not found.`); return false; }
-        if (newParentId !== null && !this.hasEntity(newParentId)) { console.error(`[EM SetParent ${entityId}] Parent entity ${newParentId} not found.`); return false; }
-        if (entityId === newParentId) { console.error(`[EM SetParent ${entityId}] Entity cannot parent itself.`); return false; }
+        if (typeof entityId !== 'number' || !isFinite(entityId)) { logger.error(`[EM SetParent ${entityId}] Invalid child entity ID type.`); return false; }
+        if (newParentId !== null && (typeof newParentId !== 'number' || !isFinite(newParentId))) { logger.error(`[EM SetParent ${entityId}] Invalid parent entity ID type: ${newParentId}. Must be number or null.`); return false; }
+        if (!this.hasEntity(entityId)) { logger.error(`[EM SetParent ${entityId}] Child entity not found.`); return false; }
+        if (newParentId !== null && !this.hasEntity(newParentId)) { logger.error(`[EM SetParent ${entityId}] Parent entity ${newParentId} not found.`); return false; }
+        if (entityId === newParentId) { logger.error(`[EM SetParent ${entityId}] Entity cannot parent itself.`); return false; }
 
         const childTransform = this.getComponent(entityId, 'transform');
-        if (!childTransform) { console.error(`[EM SetParent ${entityId}] Child entity is missing TransformComponent.`); return false; }
+        if (!childTransform) { logger.error(`[EM SetParent ${entityId}] Child entity is missing TransformComponent.`); return false; }
         const newParentTransform = (newParentId !== null) ? this.getComponent(newParentId, 'transform') : null;
-        if (newParentId !== null && !newParentTransform) { console.error(`[EM SetParent ${entityId}] New parent ${newParentId} is missing TransformComponent.`); return false; }
+        if (newParentId !== null && !newParentTransform) { logger.error(`[EM SetParent ${entityId}] New parent ${newParentId} is missing TransformComponent.`); return false; }
 
         if (childTransform.parent === newParentId) { return true; } // Already parented
 
         // Check for Circular Dependency
         let ancestorId = newParentId;
         while (ancestorId !== null) {
-            if (ancestorId === entityId) { console.error(`[EM SetParent ${entityId}] Circular dependency detected - cannot make ${entityId} a child of ${newParentId}.`); return false; }
+            if (ancestorId === entityId) { logger.error(`[EM SetParent ${entityId}] Circular dependency detected - cannot make ${entityId} a child of ${newParentId}.`); return false; }
             const ancestorTransform = this.getComponent(ancestorId, 'transform');
             if (!ancestorTransform) {
-                 console.error(`[EM SetParent ${entityId}] Circular dependency check failed: Ancestor ${ancestorId} missing TransformComponent.`);
+                 logger.error(`[EM SetParent ${entityId}] Circular dependency check failed: Ancestor ${ancestorId} missing TransformComponent.`);
                  return false;
             }
             ancestorId = ancestorTransform.parent;
@@ -374,7 +375,7 @@ export class EntityManager {
         if (oldParentId !== null && oldParentId !== newParentId) {
              const oldParentTransform = this.getComponent(oldParentId, 'transform');
              if (oldParentTransform) { oldParentTransform._removeChild(entityId); }
-             else { console.warn(`[EM SetParent ${entityId}] Old parent ${oldParentId} missing TransformComponent during detachment.`); }
+             else { logger.warn(`[EM SetParent ${entityId}] Old parent ${oldParentId} missing TransformComponent during detachment.`); }
         }
 
         // Update New Parent
@@ -397,8 +398,8 @@ export class EntityManager {
     _addComponentToEntityMap(entityId, componentType) { let set = this.componentEntityMap.get(componentType); if (!set) { set = new Set(); this.componentEntityMap.set(componentType, set); } set.add(entityId); }
     _removeComponentFromEntityMap(entityId, componentType) { this.componentEntityMap.get(componentType)?.delete(entityId); }
     _cleanupEntityFromComponentMap(entityId) { for (const set of this.componentEntityMap.values()) { set.delete(entityId); } }
-    getEntityState(entityId) { if (!this.hasEntity(entityId)) return null; const state = { id: entityId, components: {} }; const map = this.entityComponents.get(entityId); if (!map) { console.warn(`[EM getEntityState ${entityId}] Entity exists but has no component map!`); return state; } for (const [type, comp] of map.entries()) { if (!comp) { console.warn(`[EM getEntityState ${entityId}] Found null/undefined component instance for type '${type}'. Skipping.`); continue; } if (typeof comp.serialize === 'function') { try { const serializedData = comp.serialize(); if (typeof serializedData !== 'object' || serializedData === null) { console.error(`[EM getEntityState ${entityId}] Component '${type}' serialize() returned non-object or null:`, serializedData, `. Storing empty object.`); state.components[type] = {}; } else { state.components[type] = serializedData; } } catch (e) { console.error(`[EM getEntityState ${entityId}] Error calling serialize() on component '${type}':`, e); state.components[type] = {}; } } else { console.warn(`[EM getEntityState ${entityId}] Component type "${type}" missing .serialize(). Skipping.`); } } return state; }
-    serialize(prettyPrint = true) { try { const data = { entities: [] }; const ids = Array.from(this.entities).sort((a, b) => a - b); for (const id of ids) { const state = this.getEntityState(id); if (state) data.entities.push(state); } return JSON.stringify(data, null, prettyPrint ? 2 : undefined); } catch (error) { console.error("[EM Serialize Error] Failed to serialize scene:", error); return null; } }
+    getEntityState(entityId) { if (!this.hasEntity(entityId)) return null; const state = { id: entityId, components: {} }; const map = this.entityComponents.get(entityId); if (!map) { logger.warn(`[EM getEntityState ${entityId}] Entity exists but has no component map!`); return state; } for (const [type, comp] of map.entries()) { if (!comp) { logger.warn(`[EM getEntityState ${entityId}] Found null/undefined component instance for type '${type}'. Skipping.`); continue; } if (typeof comp.serialize === 'function') { try { const serializedData = comp.serialize(); if (typeof serializedData !== 'object' || serializedData === null) { logger.error(`[EM getEntityState ${entityId}] Component '${type}' serialize() returned non-object or null:`, serializedData, `. Storing empty object.`); state.components[type] = {}; } else { state.components[type] = serializedData; } } catch (e) { logger.error(`[EM getEntityState ${entityId}] Error calling serialize() on component '${type}':`, e); state.components[type] = {}; } } else { logger.warn(`[EM getEntityState ${entityId}] Component type "${type}" missing .serialize(). Skipping.`); } } return state; }
+    serialize(prettyPrint = true) { try { const data = { entities: [] }; const ids = Array.from(this.entities).sort((a, b) => a - b); for (const id of ids) { const state = this.getEntityState(id); if (state) data.entities.push(state); } return JSON.stringify(data, null, prettyPrint ? 2 : undefined); } catch (error) { logger.error("[EM Serialize Error] Failed to serialize scene:", error); return null; } }
 
 
     /**
@@ -413,16 +414,16 @@ export class EntityManager {
         try {
             parsedData = typeof jsonOrObject === 'string' ? JSON.parse(jsonOrObject) : jsonOrObject;
         } catch (parseError) {
-             console.error("[EM Deserialize Error] Failed to parse input JSON:", parseError);
+             logger.error("[EM Deserialize Error] Failed to parse input JSON:", parseError);
              this.clear(); return false;
         }
         if (!parsedData || typeof parsedData !== 'object' || !Array.isArray(parsedData.entities)) {
-             console.error("[EM Deserialize Error] Invalid scene format: 'entities' array not found or invalid.", parsedData);
+             logger.error("[EM Deserialize Error] Invalid scene format: 'entities' array not found or invalid.", parsedData);
              this.clear(); return false;
         }
         data = parsedData;
 
-        console.log("[EM] Deserializing scene...");
+        logger.log("[EM] Deserializing scene...");
         this.clear();
 
         let highestId = 0; let restoredCount = 0; let failedCount = 0;
@@ -430,7 +431,7 @@ export class EntityManager {
 
         for (const entityData of data.entities) {
              if (!entityData || typeof entityData.id !== 'number') {
-                 console.warn("[EM Restore Entity] Skipping invalid entity data format (missing or invalid ID):", entityData);
+                 logger.warn("[EM Restore Entity] Skipping invalid entity data format (missing or invalid ID):", entityData);
                  failedCount++; continue;
              }
              const id = entityData.id;
@@ -443,22 +444,22 @@ export class EntityManager {
                         restoredEntityIds.add(id);
                         restoredCount++;
                      } else {
-                          console.warn(`[EM Deserialize Entity ${id}] Component restoration failed. Entity might be incomplete.`);
+                          logger.warn(`[EM Deserialize Entity ${id}] Component restoration failed. Entity might be incomplete.`);
                           failedCount++; success = false;
                      }
                  } else { failedCount++; }
              } catch (e) {
-                 console.error(`[EM Deserialize Error] restoring entity data (ID: ${id}):`, e);
+                 logger.error(`[EM Deserialize Error] restoring entity data (ID: ${id}):`, e);
                  failedCount++;
                  if (this.hasEntity(id)) this.removeEntity(id);
              }
         } // End Pass 1 Loop
 
-        console.log(`[EM Deserialize Pass 1] ${restoredCount}/${data.entities.length} entities restored (${failedCount} failed).`);
+        logger.log(`[EM Deserialize Pass 1] ${restoredCount}/${data.entities.length} entities restored (${failedCount} failed).`);
         if (failedCount > 0) success = false;
 
         // --- Hierarchy Rebuild (Pass 2) ---
-        console.log("[EM] Deserialize Pass 2: Rebuilding hierarchy...");
+        logger.log("[EM] Deserialize Pass 2: Rebuilding hierarchy...");
         let hierarchyErrors = 0;
         for (const entityId of restoredEntityIds) {
              const entityData = data.entities.find(e => e.id === entityId);
@@ -468,27 +469,27 @@ export class EntityManager {
                  if (transformData && Object.prototype.hasOwnProperty.call(transformData, 'parent')) {
                       const targetParentId = transformData.parent;
                       if (targetParentId !== null && typeof targetParentId !== 'number') {
-                          console.warn(`[EM Hierarchy ${entityId}] Invalid parent ID type '${typeof targetParentId}'. Setting parent to null.`);
+                          logger.warn(`[EM Hierarchy ${entityId}] Invalid parent ID type '${typeof targetParentId}'. Setting parent to null.`);
                           this.setParent(entityId, null, 'deserialize'); hierarchyErrors++; // Pass source
                       } else if (targetParentId !== null && !restoredEntityIds.has(targetParentId)) {
-                          console.warn(`[EM Hierarchy ${entityId}] Target parent ${targetParentId} was not successfully restored. Setting parent to null.`);
+                          logger.warn(`[EM Hierarchy ${entityId}] Target parent ${targetParentId} was not successfully restored. Setting parent to null.`);
                           this.setParent(entityId, null, 'deserialize'); hierarchyErrors++; // Pass source
                       } else {
                           if (!this.setParent(entityId, targetParentId, 'deserialize')) { // Pass source
-                              console.warn(`[EM Hierarchy ${entityId}] setParent call failed for parent ${targetParentId}.`);
+                              logger.warn(`[EM Hierarchy ${entityId}] setParent call failed for parent ${targetParentId}.`);
                               hierarchyErrors++;
                           }
                       }
                  }
              } catch (e) {
-                 console.error(`[EM Hierarchy ${entityId}] Error rebuilding hierarchy:`, e);
+                 logger.error(`[EM Hierarchy ${entityId}] Error rebuilding hierarchy:`, e);
                  hierarchyErrors++;
                  try { if(this.hasComponent(entityId, 'transform')) this.setParent(entityId, null, 'deserializeError'); } catch {} // Pass source
              }
         } // End hierarchy loop
 
-        if(hierarchyErrors > 0) { console.warn(`[EM Deserialize Pass 2] Encountered ${hierarchyErrors} hierarchy errors.`); success = false; }
-        else { console.log("[EM Deserialize Pass 2] Hierarchy rebuild complete."); }
+        if(hierarchyErrors > 0) { logger.warn(`[EM Deserialize Pass 2] Encountered ${hierarchyErrors} hierarchy errors.`); success = false; }
+        else { logger.log("[EM Deserialize Pass 2] Hierarchy rebuild complete."); }
 
         // Adjust nextEntityId safely
         this.nextEntityId = highestId + 1;
@@ -496,7 +497,7 @@ export class EntityManager {
         if (this.nextEntityId < 1) this.nextEntityId = 1;
 
         this.eventEmitter?.emit('sceneImported');
-        console.log(`[EM] Deserialization finished. ${this.entities.size} entities loaded. Next ID: ${this.nextEntityId}. Success: ${success}`);
+        logger.log(`[EM] Deserialization finished. ${this.entities.size} entities loaded. Next ID: ${this.nextEntityId}. Success: ${success}`);
         return success;
     }
 
@@ -509,7 +510,7 @@ export class EntityManager {
     _restoreSingleEntityBase(id, entityData) {
         try {
             if (this.hasEntity(id)) {
-                console.warn(`[EM Restore Base ${id}] Entity already exists. Clearing its components before restoring.`);
+                logger.warn(`[EM Restore Base ${id}] Entity already exists. Clearing its components before restoring.`);
                 const map = this.entityComponents.get(id);
                 if(map){ const types = Array.from(map.keys()); types.forEach(type => this.removeComponent(id, type)); }
                  this.entityComponents.set(id, new Map());
@@ -520,7 +521,7 @@ export class EntityManager {
             }
              return true;
         } catch (error) {
-            console.error(`[EM Restore Base ${id}] Error creating base structure:`, error);
+            logger.error(`[EM Restore Base ${id}] Error creating base structure:`, error);
             this.entities.delete(id); this.entityComponents.delete(id);
             return false;
         }
@@ -534,30 +535,30 @@ export class EntityManager {
       */
      _restoreEntityComponents(id, componentsData) {
          if (typeof componentsData !== 'object' || componentsData === null) {
-              console.warn(`[EM Restore Components ${id}] Missing or invalid 'components' object.`);
+              logger.warn(`[EM Restore Components ${id}] Missing or invalid 'components' object.`);
              return true;
          }
          let componentErrors = 0;
          for (const [type, data] of Object.entries(componentsData)) {
-             if (data === null || typeof data !== 'object') { console.warn(`[EM Restore Components ${id}] Invalid data for '${type}'. Skipping.`, data); componentErrors++; continue; }
-             if (!this.componentRegistry.has(type)) { console.warn(`[EM Restore Components ${id}] Component type '${type}' not registered. Skipping.`); componentErrors++; continue; }
+             if (data === null || typeof data !== 'object') { logger.warn(`[EM Restore Components ${id}] Invalid data for '${type}'. Skipping.`, data); componentErrors++; continue; }
+             if (!this.componentRegistry.has(type)) { logger.warn(`[EM Restore Components ${id}] Component type '${type}' not registered. Skipping.`); componentErrors++; continue; }
              // Pass source for component addition during deserialization
              const compData = { ...( (type === 'transform') ? { ...data, parent: undefined, children: undefined } : data ), source: 'deserialize' };
              const addedComponent = this.addComponent(id, type, compData);
              if (addedComponent === null) { componentErrors++; }
          }
-         if (componentErrors > 0) { console.warn(`[EM Restore Components ${id}] Restored with ${componentErrors} component errors.`); return false; }
+         if (componentErrors > 0) { logger.warn(`[EM Restore Components ${id}] Restored with ${componentErrors} component errors.`); return false; }
          return true;
      }
 
     /** Clears all entities and components. */
     clear() {
-         console.log(`[EM] Clearing all entities (${this.entities.size})...`);
+         logger.log(`[EM] Clearing all entities (${this.entities.size})...`);
          const entityIds = Array.from(this.entities); // Clone IDs
-         entityIds.forEach(id => { if (!this.removeEntity(id)) { console.warn(`[EM Clear] removeEntity(${id}) returned false.`); } });
+         entityIds.forEach(id => { if (!this.removeEntity(id)) { logger.warn(`[EM Clear] removeEntity(${id}) returned false.`); } });
          this.entities.clear(); this.entityComponents.clear(); this.componentEntityMap.clear();
          this.nextEntityId = 1;
-         console.log("[EM] EntityManager cleared.");
+         logger.log("[EM] EntityManager cleared.");
          this.eventEmitter?.emit('sceneCleared');
      }
 }

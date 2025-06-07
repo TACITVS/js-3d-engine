@@ -2,6 +2,7 @@
 // @version 1.1.1 - Updated to use engineConfig for core defaults.
 // @previous 1.1.0 - Exclude rendererLight from serialization
 
+import * as logger from '../utils/logger.js';
 import { Component } from '../ecs/component.js';
 // --- MODIFIED IMPORT ---
 import { engineConfig } from '../engine-config.js';
@@ -43,7 +44,7 @@ export class LightComponent extends Component {
     onRemove() {
         // Renderer system handles actual disposal
         this.rendererLight = null;
-        // console.log("LightComponent removed, rendererLight reference cleared.");
+        // logger.log("LightComponent removed, rendererLight reference cleared.");
     }
 
     /**

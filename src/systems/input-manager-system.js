@@ -1,3 +1,4 @@
+import * as logger from '../utils/logger.js';
 // src/systems/input-manager-system.js
 // @version 1.0.1 - Uncommented debug logs in key handlers.
 // @previous 1.0.0 - Initial implementation
@@ -45,7 +46,7 @@ export class InputManagerSystem {
     async initialize(entityManager, eventEmitter, engine) {
         if (this._initialized) return;
 
-        console.log("[InputManagerSystem] Initializing and attaching listeners...");
+        logger.log("[InputManagerSystem] Initializing and attaching listeners...");
         // Use window for global input listening. Consider targeting engine container later if needed.
         window.addEventListener('keydown', this._handleKeyDown, { capture: true }); // Use capture to potentially intercept events
         window.addEventListener('keyup', this._handleKeyUp, { capture: true });
@@ -54,7 +55,7 @@ export class InputManagerSystem {
         // window.addEventListener('mouseup', this._handleMouseUp);
 
         this._initialized = true;
-        console.log("[InputManagerSystem] Initialized.");
+        logger.log("[InputManagerSystem] Initialized.");
     }
 
     /** @private Handles raw keydown events */
@@ -66,7 +67,7 @@ export class InputManagerSystem {
         if (!this.keyStates.get(key)) {
             this.keysDownThisFrame.add(key);
             // --- MODIFICATION: Uncommented Debug Log ---
-            console.log(`[InputManager] KeyDown Registered: ${key} (Code: ${code})`);
+            logger.log(`[InputManager] KeyDown Registered: ${key} (Code: ${code})`);
             // --- END MODIFICATION ---
         }
         this.keyStates.set(key, true);
@@ -86,7 +87,7 @@ export class InputManagerSystem {
         if (this.keyStates.get(key)) {
             this.keysUpThisFrame.add(key);
             // --- MODIFICATION: Uncommented Debug Log ---
-             console.log(`[InputManager] KeyUp Registered: ${key} (Code: ${code})`);
+             logger.log(`[InputManager] KeyUp Registered: ${key} (Code: ${code})`);
             // --- END MODIFICATION ---
         }
         this.keyStates.set(key, false);
@@ -147,7 +148,7 @@ export class InputManagerSystem {
      */
     cleanup() {
         if (!this._initialized) return;
-        console.log("[InputManagerSystem] Cleaning up listeners...");
+        logger.log("[InputManagerSystem] Cleaning up listeners...");
         window.removeEventListener('keydown', this._handleKeyDown, { capture: true });
         window.removeEventListener('keyup', this._handleKeyUp, { capture: true });
         // window.removeEventListener('mousemove', this._handleMouseMove);
@@ -157,6 +158,6 @@ export class InputManagerSystem {
         this.keysDownThisFrame.clear();
         this.keysUpThisFrame.clear();
         this._initialized = false;
-        console.log("[InputManagerSystem] Cleaned Up.");
+        logger.log("[InputManagerSystem] Cleaned Up.");
     }
 }

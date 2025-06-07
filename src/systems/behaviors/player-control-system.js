@@ -2,6 +2,7 @@
 // @version 1.1.1 - Added detailed logging for debugging control issues.
 // @previous 1.1.0 - Implemented camera-relative movement and enhanced logging.
 
+import * as logger from '../../utils/logger.js';
 import * as THREE from 'three'; // Need THREE for camera/vector math
 import { GameState } from '../game-state-manager.js'; // To check if playing
 
@@ -57,11 +58,11 @@ export class PlayerControlSystem {
         this.gameStateManager = engine.getSystem('gameStateManager');
         this.renderSystem = engine.getSystem('renderer'); // Get renderer system
 
-        if (!this.inputManager) { console.error("[PlayerControlSystem] CRITICAL: InputManagerSystem not found!"); this.active = false; return; }
-        if (!this.physicsSystem) { console.error("[PlayerControlSystem] CRITICAL: RapierPhysicsSystem not found!"); this.active = false; return; }
-        if (!this.renderSystem) { console.warn("[PlayerControlSystem] ThreeRenderSystem not found! Camera-relative movement may fail."); }
+        if (!this.inputManager) { logger.error("[PlayerControlSystem] CRITICAL: InputManagerSystem not found!"); this.active = false; return; }
+        if (!this.physicsSystem) { logger.error("[PlayerControlSystem] CRITICAL: RapierPhysicsSystem not found!"); this.active = false; return; }
+        if (!this.renderSystem) { logger.warn("[PlayerControlSystem] ThreeRenderSystem not found! Camera-relative movement may fail."); }
         if (!this.gameStateManager) {
-             console.warn("[PlayerControlSystem] GameStateManager not found! System will remain inactive.");
+             logger.warn("[PlayerControlSystem] GameStateManager not found! System will remain inactive.");
              this.active = false; // Explicitly set inactive if manager missing
         } else {
              eventEmitter.on('gameStateChanged', this._onGameStateChanged);
@@ -69,7 +70,7 @@ export class PlayerControlSystem {
              this._onGameStateChanged({ current: this.gameStateManager.getState() });
         }
 
-        console.log(`PlayerControlSystem Initialized. Initial active state: ${this.active}`);
+        logger.log(`PlayerControlSystem Initialized. Initial active state: ${this.active}`);
     }
 
      /**
@@ -80,7 +81,7 @@ export class PlayerControlSystem {
         const shouldBeActive = (current === GameState.PLAYING);
         if (this.active !== shouldBeActive) {
             this.active = shouldBeActive;
-            console.log(`[PlayerControlSystem] GameState changed to ${current}. Active set to: ${this.active}`);
+            logger.log(`[PlayerControlSystem] GameState changed to ${current}. Active set to: ${this.active}`);
         }
     }
 
@@ -94,7 +95,7 @@ export class PlayerControlSystem {
         if (!this.active) {
             // Log inactive state occasionally for debugging
             if (now - this._lastLogTime > this._logInterval) {
-                // console.log(`[PCS Update Skip] System Inactive (State: ${this.gameStateManager?.getState()})`);
+                // logger.log(`[PCS Update Skip] System Inactive (State: ${this.gameStateManager?.getState()})`);
                 this._lastLogTime = now;
             }
             return;
@@ -108,7 +109,7 @@ export class PlayerControlSystem {
                  if (!this.inputManager) reason += " InputManager";
                  if (!this.physicsSystem) reason += " PhysicsSystem";
                  if (!this.renderSystem?.activeCameraObject) reason += " ActiveCamera";
-                 console.warn(`[PCS Update Skip] ${reason}`);
+                 logger.warn(`[PCS Update Skip] ${reason}`);
                  this._lastLogTime = now;
              }
              return;
@@ -117,7 +118,7 @@ export class PlayerControlSystem {
         const controllableEntities = this.entityManager.getEntitiesWithComponents(['playerControl', 'physics', 'transform']);
         if (controllableEntities.length === 0) {
              if (now - this._lastLogTime > this._logInterval) {
-                // console.log(`[PCS Update Skip] No controllable entities found.`);
+                // logger.log(`[PCS Update Skip] No controllable entities found.`);
                 this._lastLogTime = now;
              }
              return;
@@ -138,11 +139,11 @@ export class PlayerControlSystem {
             const transform = this.entityManager.getComponent(entityId, 'transform');
 
             if (!control || !physics || !transform) {
-                // console.warn(`[PCS] Skipping Entity ${entityId}: Missing required component.`);
+                // logger.warn(`[PCS] Skipping Entity ${entityId}: Missing required component.`);
                 return;
             }
             if (physics.bodyType !== 'dynamic') {
-                // console.log(`[PCS] Skipping Entity ${entityId}: Physics bodyType is not 'dynamic'.`);
+                // logger.log(`[PCS] Skipping Entity ${entityId}: Physics bodyType is not 'dynamic'.`);
                 return;
             }
 
@@ -155,7 +156,7 @@ export class PlayerControlSystem {
 
             // --- DEBUG LOG: Input State ---
             if (hasInput || now - this._lastLogTime > this._logInterval) {
-                // console.log(`[PCS Input] Entity ${entityId}: Fwd:${moveForward}, Bwd:${moveBackward}, Lft:${moveLeft}, Rgt:${moveRight}`);
+                // logger.log(`[PCS Input] Entity ${entityId}: Fwd:${moveForward}, Bwd:${moveBackward}, Lft:${moveLeft}, Rgt:${moveRight}`);
             }
             // --- END DEBUG ---
 
@@ -164,7 +165,7 @@ export class PlayerControlSystem {
                     // Log current velocity occasionally when idle
                     const currentVelocity = this.physicsSystem.getLinearVelocity(entityId);
                     if (currentVelocity) {
-                        // console.log(`[PCS Idle] Entity ${entityId} Vel: {x:${currentVelocity.x.toFixed(2)}, y:${currentVelocity.y.toFixed(2)}, z:${currentVelocity.z.toFixed(2)}}`);
+                        // logger.log(`[PCS Idle] Entity ${entityId} Vel: {x:${currentVelocity.x.toFixed(2)}, y:${currentVelocity.y.toFixed(2)}, z:${currentVelocity.z.toFixed(2)}}`);
                     }
                     this._lastLogTime = now;
                 }
@@ -182,7 +183,7 @@ export class PlayerControlSystem {
             // --- End Calculation ---
 
             // --- DEBUG LOG: Calculated Direction ---
-            // console.log(`[PCS Calc] Entity ${entityId}: MoveDirWorld: {x:${this._moveDirectionWorld.x.toFixed(3)}, y:${this._moveDirectionWorld.y.toFixed(3)}, z:${this._moveDirectionWorld.z.toFixed(3)}}, Mag: ${magnitude.toFixed(3)}`);
+            // logger.log(`[PCS Calc] Entity ${entityId}: MoveDirWorld: {x:${this._moveDirectionWorld.x.toFixed(3)}, y:${this._moveDirectionWorld.y.toFixed(3)}, z:${this._moveDirectionWorld.z.toFixed(3)}}, Mag: ${magnitude.toFixed(3)}`);
             // --- END DEBUG ---
 
 
@@ -195,17 +196,17 @@ export class PlayerControlSystem {
                     this._finalMoveImpulse.copy(this._moveDirectionWorld).multiplyScalar(forceMagnitude);
 
                     // --- DEBUG LOG: Applying Impulse ---
-                    console.log(`[PCS ApplyImpulse] Entity: ${entityId}, ` +
+                    logger.log(`[PCS ApplyImpulse] Entity: ${entityId}, ` +
                                 `Impulse: {x:${this._finalMoveImpulse.x.toFixed(3)}, y:${this._finalMoveImpulse.y.toFixed(3)}, z:${this._finalMoveImpulse.z.toFixed(3)}} (Force:${control.moveForce.toFixed(2)}, ScaledDelta:${time.deltaTime.toFixed(4)})`);
                     // --- END DEBUG ---
 
                     const applied = this.physicsSystem.applyImpulse(entityId, { x: this._finalMoveImpulse.x, y: this._finalMoveImpulse.y, z: this._finalMoveImpulse.z }, true);
                     // --- DEBUG LOG: Impulse Result ---
-                    if (!applied) console.error(`[PCS ApplyImpulse FAILED] Entity ${entityId}`);
+                    if (!applied) logger.error(`[PCS ApplyImpulse FAILED] Entity ${entityId}`);
                     else {
                         // Log velocity *after* applying impulse for comparison
                          const velAfter = this.physicsSystem.getLinearVelocity(entityId);
-                         if(velAfter) console.log(`[PCS ApplyImpulse OK] Entity ${entityId} - Vel AFTER: {x:${velAfter.x.toFixed(3)}, y:${velAfter.y.toFixed(3)}, z:${velAfter.z.toFixed(3)}}`);
+                         if(velAfter) logger.log(`[PCS ApplyImpulse OK] Entity ${entityId} - Vel AFTER: {x:${velAfter.x.toFixed(3)}, y:${velAfter.y.toFixed(3)}, z:${velAfter.z.toFixed(3)}}`);
                     }
                     // --- END DEBUG ---
 
@@ -219,11 +220,11 @@ export class PlayerControlSystem {
                                    const currentSpeed = Math.sqrt(currentSpeedSq);
                                    const clampFactor = control.maxSpeed / currentSpeed;
                                    const clampedVel = { x: currentVelocity.x * clampFactor, y: currentVelocity.y, z: currentVelocity.z * clampFactor };
-                                   // console.log(`[PCS Clamping Vel] Entity ${entityId}: Speed=${currentSpeed.toFixed(2)}, Target=${control.maxSpeed}, NewVel: x=${clampedVel.x.toFixed(2)}, z=${clampedVel.z.toFixed(2)}`);
+                                   // logger.log(`[PCS Clamping Vel] Entity ${entityId}: Speed=${currentSpeed.toFixed(2)}, Target=${control.maxSpeed}, NewVel: x=${clampedVel.x.toFixed(2)}, z=${clampedVel.z.toFixed(2)}`);
                                    this.physicsSystem.setLinearVelocity(entityId, clampedVel, true);
                               }
                          } else {
-                              console.warn(`[PCS] Could not get velocity for entity ${entityId} to clamp speed.`);
+                              logger.warn(`[PCS] Could not get velocity for entity ${entityId} to clamp speed.`);
                          }
                     }
 
@@ -236,26 +237,26 @@ export class PlayerControlSystem {
                     };
 
                      // --- DEBUG LOG: Setting Velocity ---
-                    console.log(`[PCS SetVelocity] Entity: ${entityId}, ` +
+                    logger.log(`[PCS SetVelocity] Entity: ${entityId}, ` +
                                 `TargetVel: {x:${targetVelocity.x.toFixed(3)}, y:${targetVelocity.y.toFixed(3)}, z:${targetVelocity.z.toFixed(3)}} (MaxSpeed:${control.maxSpeed.toFixed(2)})`);
                      // --- END DEBUG ---
 
                     const applied = this.physicsSystem.setLinearVelocity(entityId, targetVelocity, true);
                     // --- DEBUG LOG: Set Velocity Result ---
-                    if (!applied) console.error(`[PCS SetVelocity FAILED] Entity ${entityId}`);
+                    if (!applied) logger.error(`[PCS SetVelocity FAILED] Entity ${entityId}`);
                     // --- END DEBUG ---
                 }
 
             } else {
                 // No horizontal input this frame.
-                 // console.log(`[PCS No Input] Entity ${entityId}: No significant input magnitude.`);
+                 // logger.log(`[PCS No Input] Entity ${entityId}: No significant input magnitude.`);
             }
              this._lastLogTime = now; // Reset log timer if input was processed
         }); // End forEach entity
     } // End update
 
     cleanup() {
-        console.log("[PlayerControlSystem] Cleaning up.");
+        logger.log("[PlayerControlSystem] Cleaning up.");
          if (this.eventEmitter && this.gameStateManager) {
              this.eventEmitter.off('gameStateChanged', this._onGameStateChanged);
          }

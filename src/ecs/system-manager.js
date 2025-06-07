@@ -1,3 +1,4 @@
+import * as logger from '../utils/logger.js';
 // src/ecs/system-manager.js - System management and update loop
 // @version 1.2.2 - Added logging within the update loop to trace system execution attempts.
 // @previous 1.2.1 - Added robustness checks for registration, update loop, and state setting.
@@ -93,7 +94,7 @@ export class SystemManager {
         // --- END ADDED ---
 
 
-        console.log(`[SystemManager Constructor] Initialized.`);
+        logger.log(`[SystemManager Constructor] Initialized.`);
     }
 
     /**
@@ -115,33 +116,33 @@ export class SystemManager {
     async register(name, system) {
         // --- Validation ---
         if (typeof name !== 'string' || name.trim() === '') {
-             console.error(`[SystemManager Register] Invalid system name provided: "${name}". Registration failed.`);
+             logger.error(`[SystemManager Register] Invalid system name provided: "${name}". Registration failed.`);
              return Promise.reject(new Error("System name must be a non-empty string."));
         }
         if (!system || typeof system !== 'object') {
-            console.error(`[SystemManager Register] Invalid system object provided for name "${name}". Registration failed.`);
+            logger.error(`[SystemManager Register] Invalid system object provided for name "${name}". Registration failed.`);
             return Promise.reject(new Error("Invalid system object provided."));
         }
         // ---
 
         if (typeof system.initialize !== 'function') {
-            console.warn(`[SystemManager Register ${name}] System does not have an 'initialize' method. Initialization will be skipped.`);
+            logger.warn(`[SystemManager Register ${name}] System does not have an 'initialize' method. Initialization will be skipped.`);
         }
         if (typeof system.update !== 'function' && typeof system.preUpdate !== 'function' && typeof system.postUpdate !== 'function') {
-            console.warn(`[SystemManager Register ${name}] System does not have 'update', 'preUpdate', or 'postUpdate' methods. It may not do anything.`);
+            logger.warn(`[SystemManager Register ${name}] System does not have 'update', 'preUpdate', or 'postUpdate' methods. It may not do anything.`);
         }
         if (this.systems.has(name)) {
-             console.warn(`[SystemManager Register ${name}] System already registered. Overwriting.`);
+             logger.warn(`[SystemManager Register ${name}] System already registered. Overwriting.`);
              this.unregister(name); // Unregister previous one cleanly
         }
 
-        console.log(`[SystemManager Register] Registering system "${name}"...`);
+        logger.log(`[SystemManager Register] Registering system "${name}"...`);
         this.systems.set(name, system);
 
         // --- Validate priority ---
         let priority = system.priority;
         if (typeof priority !== 'number' || !isFinite(priority)) {
-             console.warn(`[SystemManager Register ${name}] System provided invalid priority (${priority}). Using default 0.`);
+             logger.warn(`[SystemManager Register ${name}] System provided invalid priority (${priority}). Using default 0.`);
              priority = 0;
         }
         // ---
@@ -155,10 +156,10 @@ export class SystemManager {
             }
             const state = this.systemStates.get(name);
             if (state) state.isInitialized = true; // Only mark initialized if registration succeeded
-            console.log(`[SystemManager Register] System "${name}" initialized successfully.`);
+            logger.log(`[SystemManager Register] System "${name}" initialized successfully.`);
             this._sortSystems(); // Sorts and clears logged state
         } catch (error) {
-            console.error(`[SystemManager Register] CRITICAL ERROR initializing system "${name}":`, error);
+            logger.error(`[SystemManager Register] CRITICAL ERROR initializing system "${name}":`, error);
             // Clean up partially registered state
             this.systems.delete(name);
             this.systemStates.delete(name);
@@ -186,9 +187,9 @@ export class SystemManager {
         if (typeof system.cleanup === 'function') {
             try {
                 system.cleanup();
-                // console.log(`[SystemManager Unregister] Cleaned up system "${name}".`);
+                // logger.log(`[SystemManager Unregister] Cleaned up system "${name}".`);
             } catch (error) {
-                console.error(`[SystemManager Unregister] Error cleaning up system "${name}":`, error);
+                logger.error(`[SystemManager Unregister] Error cleaning up system "${name}":`, error);
             }
         }
         this.systems.delete(name);
@@ -204,7 +205,7 @@ export class SystemManager {
         });
 
         this._sortSystems(); // Sorts and clears logged state again
-        // console.log(`[SystemManager Unregister] Unregistered system "${name}".`);
+        // logger.log(`[SystemManager Unregister] Unregistered system "${name}".`);
     }
 
     /**
@@ -236,12 +237,12 @@ export class SystemManager {
 
         // --- Validation ---
         if (!time || typeof time.deltaTime !== 'number' || !isFinite(time.deltaTime)) {
-             console.error(`[SystemManager Update Loop #${this._updateCounter}] Invalid time object received. Aborting update.`, time);
+             logger.error(`[SystemManager Update Loop #${this._updateCounter}] Invalid time object received. Aborting update.`, time);
              this.engine?.stop();
              return;
         }
         if (!Array.isArray(this.executionOrder)) {
-             console.error(`[SystemManager Update Loop #${this._updateCounter}] FATAL: this.executionOrder is not an array! Cannot update.`, this.executionOrder);
+             logger.error(`[SystemManager Update Loop #${this._updateCounter}] FATAL: this.executionOrder is not an array! Cannot update.`, this.executionOrder);
              this.engine?.stop();
              return;
         }
@@ -256,10 +257,10 @@ export class SystemManager {
                  // Log skip reason ONCE per mode change
                  const skipKey = `${name}_${state?.isInitialized}_${state?.isActive}`;
                  if (!this._loggedSkips.has(skipKey)) {
-                     if (!system) console.log(`[SM Update Skip] System '${name}' not found.`);
-                     else if (!state) console.log(`[SM Update Skip] State for system '${name}' not found.`);
-                     else if (!state.isInitialized) console.log(`[SM Update Skip] System '${name}' is NOT initialized.`);
-                     else if (!state.isActive) console.log(`[SM Update Skip] System '${name}' is INACTIVE.`);
+                     if (!system) logger.log(`[SM Update Skip] System '${name}' not found.`);
+                     else if (!state) logger.log(`[SM Update Skip] State for system '${name}' not found.`);
+                     else if (!state.isInitialized) logger.log(`[SM Update Skip] System '${name}' is NOT initialized.`);
+                     else if (!state.isActive) logger.log(`[SM Update Skip] System '${name}' is INACTIVE.`);
                      this._loggedSkips.add(skipKey);
                  }
                 continue;
@@ -267,7 +268,7 @@ export class SystemManager {
 
             // Log system execution ONCE per mode change
              if (!this._loggedSystems.has(name)) {
-                  console.log(`[SM Update EXEC] >>> EXECUTING system '${name}' (Active: ${state.isActive}, Prio: ${state.priority})`);
+                  logger.log(`[SM Update EXEC] >>> EXECUTING system '${name}' (Active: ${state.isActive}, Prio: ${state.priority})`);
                   this._loggedSystems.add(name);
              }
              // Clear any previous skip logs for this system now that it's executing
@@ -283,11 +284,11 @@ export class SystemManager {
                 system.update?.(time);
                 system.postUpdate?.(time);
             } catch (error) {
-                 console.error(`\n--- !!! RUNTIME ERROR in System: "${name}" !!! ---`);
-                 console.error(`[SystemManager Update Loop #${this._updateCounter}]`);
-                 console.error("Error Details:", error);
-                 console.error("Failing System Instance:", system);
-                 console.error("--- End System Error --- \n");
+                 logger.error(`\n--- !!! RUNTIME ERROR in System: "${name}" !!! ---`);
+                 logger.error(`[SystemManager Update Loop #${this._updateCounter}]`);
+                 logger.error("Error Details:", error);
+                 logger.error("Failing System Instance:", system);
+                 logger.error("--- End System Error --- \n");
                  throw error; // Re-throw to stop the engine loop
             }
         }
@@ -306,7 +307,7 @@ export class SystemManager {
         // Clear logged state whenever order changes
         this._loggedSystems.clear();
         this._loggedSkips.clear();
-        // console.log("[SystemManager] System execution order updated:", this.executionOrder);
+        // logger.log("[SystemManager] System execution order updated:", this.executionOrder);
     }
 
     /**
@@ -328,10 +329,10 @@ export class SystemManager {
                       this._sortSystems(); // Sorts and clears logged state
                  }
             } else {
-                 console.warn(`[SystemManager SetPriority ${name}] Invalid priority value "${priority}". Priority not changed.`);
+                 logger.warn(`[SystemManager SetPriority ${name}] Invalid priority value "${priority}". Priority not changed.`);
             }
         } else {
-            console.warn(`[SystemManager SetPriority] Cannot set priority for unknown system: "${name}"`);
+            logger.warn(`[SystemManager SetPriority] Cannot set priority for unknown system: "${name}"`);
         }
     }
 
@@ -349,13 +350,13 @@ export class SystemManager {
      */
      setSystemActive(name, isActive) {
          if (typeof isActive !== 'boolean') {
-              console.warn(`[SystemManager SetActive ${name}] Invalid 'isActive' value provided (${isActive}). Must be boolean.`);
+              logger.warn(`[SystemManager SetActive ${name}] Invalid 'isActive' value provided (${isActive}). Must be boolean.`);
               return;
          }
          const state = this.systemStates.get(name);
           if (state) {
               if (!state.isInitialized) {
-                  console.warn(`[SystemManager SetActive ${name}] Attempted to set active state for uninitialized system. State change deferred.`);
+                  logger.warn(`[SystemManager SetActive ${name}] Attempted to set active state for uninitialized system. State change deferred.`);
                   return;
               }
               if (state.isActive !== isActive) {
@@ -363,10 +364,10 @@ export class SystemManager {
                    // Clear logged state when activation changes
                    this._loggedSystems.delete(name);
                    this._loggedSkips.clear(); // Clear all skip logs as activation changes might affect multiple systems
-                   // console.log(`[SystemManager SetActive] Set active state for system "${name}" to ${isActive}.`);
+                   // logger.log(`[SystemManager SetActive] Set active state for system "${name}" to ${isActive}.`);
               }
           } else {
-              console.warn(`[SystemManager SetActive] Cannot set active state for unknown or unregistered system: "${name}"`);
+              logger.warn(`[SystemManager SetActive] Cannot set active state for unknown or unregistered system: "${name}"`);
           }
      }
 
@@ -404,7 +405,7 @@ export class SystemManager {
       * @instance
       */
      cleanupAll() {
-         console.log("[SystemManager Cleanup] Cleaning up all systems...");
+         logger.log("[SystemManager Cleanup] Cleaning up all systems...");
          const names = Array.from(this.systems.keys());
          for (const name of names) {
              this.unregister(name); // unregister handles cleanup call and clearing logged state
@@ -412,7 +413,7 @@ export class SystemManager {
          this.systems.clear(); this.systemStates.clear();
          this.executionOrder = [];
          this._loggedSystems.clear(); this._loggedSkips.clear(); // Final clear
-         console.log("[SystemManager Cleanup] All systems unregistered and cleaned up.");
+         logger.log("[SystemManager Cleanup] All systems unregistered and cleaned up.");
      }
 
 } // End SystemManager Class

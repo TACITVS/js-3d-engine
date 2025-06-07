@@ -1,3 +1,4 @@
+import * as logger from '../../utils/logger.js';
 // src/systems/behaviors/spin-system.js
 // @version 1.2.0 - Added check for PhysicsComponent; only spin dynamic bodies or non-physics entities.
 // @previous 1.1.0 - Added guard clauses for component data structure.
@@ -22,7 +23,7 @@ export class SpinSystem {
     initialize(entityManager, eventEmitter, engine) {
         this.entityManager = entityManager;
         this.engine = engine; // Store engine reference
-        console.log("SpinSystem Initialized");
+        logger.log("SpinSystem Initialized");
     }
 
     /**
@@ -34,7 +35,7 @@ export class SpinSystem {
         // Initial checks for system state
         if (!this.active || !this.entityManager || !this.engine || !time || typeof time.deltaTime !== 'number' || !isFinite(time.deltaTime)) {
              if (!time || typeof time.deltaTime !== 'number' || !isFinite(time.deltaTime)) {
-                  console.warn("SpinSystem: Invalid time object provided to update.", time);
+                  logger.warn("SpinSystem: Invalid time object provided to update.", time);
              }
             return;
         }
@@ -52,15 +53,15 @@ export class SpinSystem {
 
             // --- GUARD CLAUSES ---
             if (!spin || !transform) {
-                 console.warn(`SpinSystem: Missing spin or transform component for entity ${entityId} unexpectedly.`);
+                 logger.warn(`SpinSystem: Missing spin or transform component for entity ${entityId} unexpectedly.`);
                  return; // Skip this entity
             }
             if (!Array.isArray(spin.speed) || spin.speed.length !== 3 || !spin.speed.every(s => typeof s === 'number' && isFinite(s))) {
-                console.warn(`SpinSystem: Invalid spin.speed data for entity ${entityId}:`, spin.speed);
+                logger.warn(`SpinSystem: Invalid spin.speed data for entity ${entityId}:`, spin.speed);
                 return; // Skip this entity
             }
             if (!Array.isArray(transform.rotation) || transform.rotation.length !== 3 || !transform.rotation.every(r => typeof r === 'number' && isFinite(r))) {
-                 console.warn(`SpinSystem: Invalid transform.rotation data for entity ${entityId}:`, transform.rotation);
+                 logger.warn(`SpinSystem: Invalid transform.rotation data for entity ${entityId}:`, transform.rotation);
                 return; // Skip this entity
             }
 
@@ -70,7 +71,7 @@ export class SpinSystem {
             const canSpin = !physics || physics.bodyType === 'dynamic';
 
             if (!canSpin) {
-                // console.log(`[SpinSystem] Skipping spin for entity ${entityId} due to non-dynamic physics bodyType: ${physics?.bodyType}`); // Optional log
+                // logger.log(`[SpinSystem] Skipping spin for entity ${entityId} due to non-dynamic physics bodyType: ${physics?.bodyType}`); // Optional log
                 return; // Skip applying spin to static/kinematic bodies
             }
             // --- END MODIFICATION ---
@@ -102,9 +103,9 @@ export class SpinSystem {
      * Cleans up system resources.
      */
     cleanup() {
-        console.log("Cleaning up SpinSystem...");
+        logger.log("Cleaning up SpinSystem...");
         this.entityManager = null;
         this.engine = null;
-        console.log("SpinSystem Cleaned Up.");
+        logger.log("SpinSystem Cleaned Up.");
     }
 }

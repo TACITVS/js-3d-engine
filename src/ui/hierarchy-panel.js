@@ -2,6 +2,7 @@
 // @version 1.3.0 - Added drag-and-drop reparenting.
 // @previous 1.2.0 - Refactored, added JSDoc comments, kept diagnostic logs
 
+import * as logger from '../utils/logger.js';
 import { UIComponent } from './ui-component.js';
 // --- MODIFICATION: Import the new command ---
 import { ReparentEntityCommand } from '../editor/command-manager.js';
@@ -98,7 +99,7 @@ export class HierarchyPanel extends UIComponent {
      */
     _setupEventListeners() {
         if (!this.editor?.eventEmitter) {
-            console.error("HierarchyPanel: Cannot setup listeners - EventEmitter missing.");
+            logger.error("HierarchyPanel: Cannot setup listeners - EventEmitter missing.");
             return;
         }
         const emitter = this.editor.eventEmitter;
@@ -123,7 +124,7 @@ export class HierarchyPanel extends UIComponent {
             this.listContainer.addEventListener('drop', this._handleDrop);
             this.listContainer.addEventListener('dragend', this._handleDragEnd); // Cleanup visuals
             // --- END MODIFICATION ---
-        } else { console.error("HierarchyPanel: listContainer not found during setupEventListeners."); }
+        } else { logger.error("HierarchyPanel: listContainer not found during setupEventListeners."); }
 
         // Remove temporary listener if it exists
         if (this._tempWindowClickListener) {
@@ -156,13 +157,13 @@ export class HierarchyPanel extends UIComponent {
     }
     // --- END NEW HANDLERS ---
 
-    _handleListContainerClick(event) { /* ... (unchanged) ... */ const itemElement = event.target.closest('.hierarchy-item'); if (!itemElement) return; const toggleElement = event.target.closest('.hierarchy-toggle'); if (toggleElement) { this._handleToggleClick(itemElement, toggleElement); } else { if (itemElement.dataset.entityId) { const entityIdStr = itemElement.dataset.entityId; const entityId = parseInt(entityIdStr, 10); if (!isNaN(entityId)) { this.editor.selectEntity(entityId); } else { console.warn(`[HierarchyPanel._handleListContainerClick] Invalid entity ID found: ${entityIdStr}`); } } else { console.warn("[HierarchyPanel._handleListContainerClick] Clicked item missing valid data-entity-id."); } } }
+    _handleListContainerClick(event) { /* ... (unchanged) ... */ const itemElement = event.target.closest('.hierarchy-item'); if (!itemElement) return; const toggleElement = event.target.closest('.hierarchy-toggle'); if (toggleElement) { this._handleToggleClick(itemElement, toggleElement); } else { if (itemElement.dataset.entityId) { const entityIdStr = itemElement.dataset.entityId; const entityId = parseInt(entityIdStr, 10); if (!isNaN(entityId)) { this.editor.selectEntity(entityId); } else { logger.warn(`[HierarchyPanel._handleListContainerClick] Invalid entity ID found: ${entityIdStr}`); } } else { logger.warn("[HierarchyPanel._handleListContainerClick] Clicked item missing valid data-entity-id."); } } }
     _handleToggleClick(itemElement, toggleElement) { /* ... (unchanged) ... */ const sublist = itemElement.querySelector(':scope > ul.hierarchy-subtree'); if (sublist) { const isExpanded = itemElement.classList.toggle('expanded'); sublist.style.display = isExpanded ? 'block' : 'none'; toggleElement.textContent = isExpanded ? '▼' : '▶'; } }
     _onEntitySelected({ id }) { /* ... (unchanged) ... */ if (!this.listContainer) return; this.listContainer.querySelectorAll('.hierarchy-item.selected').forEach(el => { el.classList.remove('selected'); }); if (id !== null) { const selectedItem = this.listContainer.querySelector(`.hierarchy-item[data-entity-id="${id}"]`); if (selectedItem) selectedItem.classList.add('selected'); } this._updateButtonStates(id); }
     _updateButtonStates(selectedId) { /* ... (unchanged) ... */ if (this.createPrefabButton) { this.createPrefabButton.disabled = (selectedId === null); } if(this.instantiatePrefabButton) { this.instantiatePrefabButton.disabled = false; } }
 
     _renderHierarchy() {
-        // console.log("[HierarchyPanel] Rendering hierarchy..."); // Reduce logging noise
+        // logger.log("[HierarchyPanel] Rendering hierarchy..."); // Reduce logging noise
         if (!this.listContainer || !this.editor?.entityManager) { return; }
         const em = this.editor.entityManager;
         const selectedIdBeforeRender = this.editor.getSelectedEntity();
@@ -245,7 +246,7 @@ export class HierarchyPanel extends UIComponent {
             childrenIds.sort((a, b) => a - b).forEach(childId => {
                  if (em.hasEntity(childId)) {
                       this._renderEntityItem(childId, subList, level + 1, expansionState);
-                 } else { console.warn(`HierarchyPanel: Child ${childId} of ${entityId} not found during render.`); }
+                 } else { logger.warn(`HierarchyPanel: Child ${childId} of ${entityId} not found during render.`); }
             });
         }
         // --- END MODIFICATION ---
@@ -266,8 +267,8 @@ export class HierarchyPanel extends UIComponent {
 
 
     _getEntityDisplayInfo(entityId) { /* ... unchanged ... */ let entityType = 'Entity'; let entityIcon = '❔'; if (!this.editor) return { entityType, entityIcon }; const rend = this.editor.getComponent(entityId, 'renderable'); const light = this.editor.getComponent(entityId, 'light'); const cam = this.editor.getComponent(entityId, 'camera'); if (rend) { entityType = rend.type || 'Mesh'; if(rend.type === 'Model') entityIcon = '📦'; else if (rend.type === 'Cube') entityIcon = '🧊'; else if (rend.type === 'Sphere') entityIcon = '⚪'; else if (rend.type === 'Ground') entityIcon = '➖'; else entityIcon = '🧊'; } else if (light) { entityType = light.type ? `${light.type} Light` : 'Light'; entityIcon = '💡'; } else if (cam) { entityType = cam.type ? `${cam.type} Camera` : 'Camera'; entityIcon = '📷'; } return { entityType, entityIcon }; }
-    _handleCreatePrefab() { /* ... unchanged ... */ const selectedId = this.editor?.getSelectedEntity(); if (selectedId === null || !this.editor?.prefabManager) { alert("Please select an entity in the hierarchy first."); return; } const prefabName = prompt("Enter a name for the prefab:", `Prefab_${selectedId}`); if (prefabName && prefabName.trim() !== "") { try { this.editor.prefabManager.savePrefab(selectedId, prefabName.trim()); alert(`Prefab "${prefabName.trim()}" saved successfully!`); } catch (error) { console.error("Error saving prefab:", error); alert(`Failed to save prefab: ${error.message}`); } } else if (prefabName !== null) { alert("Prefab name cannot be empty."); } }
-    _handleInstantiatePrefab() { /* ... unchanged ... */ if (!this.editor?.prefabManager) return; const savedPrefabs = this.editor.prefabManager.listPrefabs(); let promptMessage = "Enter the name of the prefab to instantiate:"; if (savedPrefabs && savedPrefabs.length > 0) { promptMessage += `\nAvailable: ${savedPrefabs.join(', ')}`; } else { alert("No saved prefabs found."); return; } const prefabName = prompt(promptMessage); if (prefabName && prefabName.trim() !== "") { try { const newEntityId = this.editor.prefabManager.createEntityFromPrefab(prefabName.trim()); if (newEntityId !== null) { this.editor.selectEntity(newEntityId); } else { alert(`Could not instantiate prefab "${prefabName.trim()}". Check console.`); } } catch (error) { console.error("Error instantiating prefab:", error); alert(`Failed to instantiate prefab: ${error.message}`); } } else if (prefabName !== null) { alert("Prefab name cannot be empty."); } }
+    _handleCreatePrefab() { /* ... unchanged ... */ const selectedId = this.editor?.getSelectedEntity(); if (selectedId === null || !this.editor?.prefabManager) { alert("Please select an entity in the hierarchy first."); return; } const prefabName = prompt("Enter a name for the prefab:", `Prefab_${selectedId}`); if (prefabName && prefabName.trim() !== "") { try { this.editor.prefabManager.savePrefab(selectedId, prefabName.trim()); alert(`Prefab "${prefabName.trim()}" saved successfully!`); } catch (error) { logger.error("Error saving prefab:", error); alert(`Failed to save prefab: ${error.message}`); } } else if (prefabName !== null) { alert("Prefab name cannot be empty."); } }
+    _handleInstantiatePrefab() { /* ... unchanged ... */ if (!this.editor?.prefabManager) return; const savedPrefabs = this.editor.prefabManager.listPrefabs(); let promptMessage = "Enter the name of the prefab to instantiate:"; if (savedPrefabs && savedPrefabs.length > 0) { promptMessage += `\nAvailable: ${savedPrefabs.join(', ')}`; } else { alert("No saved prefabs found."); return; } const prefabName = prompt(promptMessage); if (prefabName && prefabName.trim() !== "") { try { const newEntityId = this.editor.prefabManager.createEntityFromPrefab(prefabName.trim()); if (newEntityId !== null) { this.editor.selectEntity(newEntityId); } else { alert(`Could not instantiate prefab "${prefabName.trim()}". Check console.`); } } catch (error) { logger.error("Error instantiating prefab:", error); alert(`Failed to instantiate prefab: ${error.message}`); } } else if (prefabName !== null) { alert("Prefab name cannot be empty."); } }
 
 
     // --- NEW: Drag and Drop Handlers ---
@@ -289,7 +290,7 @@ export class HierarchyPanel extends UIComponent {
         event.dataTransfer.setData('text/plain', this.draggedEntityId.toString());
         event.dataTransfer.effectAllowed = 'move';
         itemElement.classList.add('dragging'); // Visual feedback
-        console.log(`[Hierarchy DnD] Drag Start: Entity ${this.draggedEntityId}`);
+        logger.log(`[Hierarchy DnD] Drag Start: Entity ${this.draggedEntityId}`);
     }
 
     _handleDragOver(event) {
@@ -331,11 +332,11 @@ export class HierarchyPanel extends UIComponent {
             if (isNaN(newParentId)) newParentId = null; // Fallback to root if ID invalid
         }
 
-        console.log(`[Hierarchy DnD] Drop: Dragged ${this.draggedEntityId} onto target parent ${newParentId}`);
+        logger.log(`[Hierarchy DnD] Drop: Dragged ${this.draggedEntityId} onto target parent ${newParentId}`);
 
         // --- Validation ---
         if (this.draggedEntityId === newParentId) {
-            console.warn("[Hierarchy DnD] Cannot parent entity to itself.");
+            logger.warn("[Hierarchy DnD] Cannot parent entity to itself.");
             return;
         }
         // Circular dependency check is handled by EntityManager.setParent
@@ -346,7 +347,7 @@ export class HierarchyPanel extends UIComponent {
             this.editor.commandManager.execute(cmd);
             // The hierarchy should re-render automatically due to entityUpdated event from setParent
         } else {
-            console.error("[Hierarchy DnD] CommandManager not available.");
+            logger.error("[Hierarchy DnD] CommandManager not available.");
         }
 
         this.draggedEntityId = null; // Reset drag state
@@ -357,7 +358,7 @@ export class HierarchyPanel extends UIComponent {
         this.listContainer?.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
         this._clearDragOverStyles();
         this.draggedEntityId = null;
-        console.log("[Hierarchy DnD] Drag End");
+        logger.log("[Hierarchy DnD] Drag End");
     }
 
     _clearDragOverStyles() {

@@ -1,3 +1,4 @@
+import * as logger from '../../../utils/logger.js';
 // games/breakout/systems/game-ui-system.js
 // NOTE: Moved from src/systems/game/ - Part of Engine/Game Separation step.
 // @version 1.0.1 - Updated import paths.
@@ -29,7 +30,7 @@ export class GameUISystem {
         this.container = engine.container;
 
         if (!this.container) {
-            console.error("[Breakout] GameUISystem: Container not found on engine instance!");
+            logger.error("[Breakout] GameUISystem: Container not found on engine instance!");
             this.active = false; // Cannot function without container
             return;
         }
@@ -37,7 +38,7 @@ export class GameUISystem {
         this._createUIElements();
         this.hide(); // Hidden by default, game state system should show/hide
 
-        console.log("[Breakout] GameUISystem Initialized");
+        logger.log("[Breakout] GameUISystem Initialized");
     }
 
     _createUIElements() {
@@ -177,7 +178,7 @@ export class GameUISystem {
             this.uiRoot.style.visibility = 'visible';
             this.uiRoot.style.opacity = '1';
             this.isVisible = true;
-            console.log("[Breakout] GameUISystem Shown");
+            logger.log("[Breakout] GameUISystem Shown");
         }
     }
 
@@ -186,7 +187,7 @@ export class GameUISystem {
             this.uiRoot.style.opacity = '0';
             this.uiRoot.style.visibility = 'hidden';
             this.isVisible = false;
-             console.log("[Breakout] GameUISystem Hidden");
+             logger.log("[Breakout] GameUISystem Hidden");
         }
     }
 
@@ -207,6 +208,6 @@ export class GameUISystem {
         this.container = null;
         this.engine = null;
         this.isVisible = false;
-        console.log("[Breakout] GameUISystem Cleaned Up");
+        logger.log("[Breakout] GameUISystem Cleaned Up");
     }
 }
