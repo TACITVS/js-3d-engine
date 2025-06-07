@@ -21,17 +21,20 @@ export class InputManagerSystem {
         /** @private @type {Set<string>} Stores keys/buttons released *this* frame */
         this.keysUpThisFrame = new Set();
 
-        // TODO: Add mouse position, button states, mouse movement delta
-        // this.mousePosition = { x: 0, y: 0 };
-        // this.mouseButtons = new Map(); // buttonIndex -> boolean
-        // this.mouseDelta = { x: 0, y: 0 };
+        // --- Mouse State ---
+        /** @private @type {{x:number, y:number}} Current mouse position */
+        this.mousePosition = { x: 0, y: 0 };
+        /** @private @type {{x:number, y:number}} Movement delta since last frame */
+        this.mouseDelta = { x: 0, y: 0 };
+        /** @private @type {Map<number, boolean>} Mouse button down state */
+        this.mouseButtons = new Map();
 
         // Bind event handlers
         this._handleKeyDown = this._handleKeyDown.bind(this);
         this._handleKeyUp = this._handleKeyUp.bind(this);
-        // this._handleMouseMove = this._handleMouseMove.bind(this);
-        // this._handleMouseDown = this._handleMouseDown.bind(this);
-        // this._handleMouseUp = this._handleMouseUp.bind(this);
+        this._handleMouseMove = this._handleMouseMove.bind(this);
+        this._handleMouseDown = this._handleMouseDown.bind(this);
+        this._handleMouseUp = this._handleMouseUp.bind(this);
 
         this._initialized = false;
     }
@@ -49,9 +52,9 @@ export class InputManagerSystem {
         // Use window for global input listening. Consider targeting engine container later if needed.
         window.addEventListener('keydown', this._handleKeyDown, { capture: true }); // Use capture to potentially intercept events
         window.addEventListener('keyup', this._handleKeyUp, { capture: true });
-        // window.addEventListener('mousemove', this._handleMouseMove);
-        // window.addEventListener('mousedown', this._handleMouseDown);
-        // window.addEventListener('mouseup', this._handleMouseUp);
+        window.addEventListener('mousemove', this._handleMouseMove);
+        window.addEventListener('mousedown', this._handleMouseDown);
+        window.addEventListener('mouseup', this._handleMouseUp);
 
         this._initialized = true;
         console.log("[InputManagerSystem] Initialized.");
@@ -92,10 +95,34 @@ export class InputManagerSystem {
         this.keyStates.set(key, false);
     }
 
-    // --- Placeholder Mouse Handlers ---
-    // _handleMouseMove(event) { /* Update mousePosition, mouseDelta */ }
-    // _handleMouseDown(event) { /* Update mouseButtons, keysDownThisFrame */ }
-    // _handleMouseUp(event) { /* Update mouseButtons, keysUpThisFrame */ }
+    // --- Mouse Handlers ---
+    /** @private */
+    _handleMouseMove(event) {
+        const newX = event.clientX;
+        const newY = event.clientY;
+        this.mouseDelta.x += newX - this.mousePosition.x;
+        this.mouseDelta.y += newY - this.mousePosition.y;
+        this.mousePosition.x = newX;
+        this.mousePosition.y = newY;
+    }
+
+    /** @private */
+    _handleMouseDown(event) {
+        const button = event.button;
+        if (!this.mouseButtons.get(button)) {
+            this.keysDownThisFrame.add(`mouse${button}`);
+        }
+        this.mouseButtons.set(button, true);
+    }
+
+    /** @private */
+    _handleMouseUp(event) {
+        const button = event.button;
+        if (this.mouseButtons.get(button)) {
+            this.keysUpThisFrame.add(`mouse${button}`);
+        }
+        this.mouseButtons.set(button, false);
+    }
 
     /**
      * Clears the per-frame state (keys pressed/released this frame).
@@ -105,7 +132,7 @@ export class InputManagerSystem {
     postUpdate(time) { // Using postUpdate ensures checks reflect the frame just processed
         this.keysDownThisFrame.clear();
         this.keysUpThisFrame.clear();
-        // this.mouseDelta = { x: 0, y: 0 }; // Reset mouse delta
+        this.mouseDelta = { x: 0, y: 0 }; // Reset mouse delta
     }
 
     // --- Public Query Methods ---
@@ -137,6 +164,31 @@ export class InputManagerSystem {
         return this.keysUpThisFrame.has(keyIdentifier.toLowerCase());
     }
 
+    /** Returns current mouse position. */
+    getMousePosition() {
+        return { x: this.mousePosition.x, y: this.mousePosition.y };
+    }
+
+    /** Returns accumulated mouse movement since last frame. */
+    getMouseDelta() {
+        return { x: this.mouseDelta.x, y: this.mouseDelta.y };
+    }
+
+    /** Checks if a mouse button is currently held down. */
+    isMouseButtonDown(buttonIndex) {
+        return this.mouseButtons.get(buttonIndex) ?? false;
+    }
+
+    /** Checks if a mouse button was pressed during this frame. */
+    wasMouseButtonPressed(buttonIndex) {
+        return this.keysDownThisFrame.has(`mouse${buttonIndex}`);
+    }
+
+    /** Checks if a mouse button was released during this frame. */
+    wasMouseButtonReleased(buttonIndex) {
+        return this.keysUpThisFrame.has(`mouse${buttonIndex}`);
+    }
+
     // --- TODO: Add methods for actions (mapping keys to actions) ---
     // isActionPressed(actionName) { /* Map actionName to key(s) and check isKeyDown */ }
     // wasActionJustPressed(actionName) { /* Map actionName to key(s) and check wasKeyPressed */ }
@@ -150,9 +202,9 @@ export class InputManagerSystem {
         console.log("[InputManagerSystem] Cleaning up listeners...");
         window.removeEventListener('keydown', this._handleKeyDown, { capture: true });
         window.removeEventListener('keyup', this._handleKeyUp, { capture: true });
-        // window.removeEventListener('mousemove', this._handleMouseMove);
-        // window.removeEventListener('mousedown', this._handleMouseDown);
-        // window.removeEventListener('mouseup', this._handleMouseUp);
+        window.removeEventListener('mousemove', this._handleMouseMove);
+        window.removeEventListener('mousedown', this._handleMouseDown);
+        window.removeEventListener('mouseup', this._handleMouseUp);
         this.keyStates.clear();
         this.keysDownThisFrame.clear();
         this.keysUpThisFrame.clear();
