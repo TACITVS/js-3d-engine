@@ -2,6 +2,7 @@
 // Unit tests for the TransformComponent class (Browser/Mocha/Chai)
 
 // Imports relative to test-runner.html
+import '../../../test/setup.js';
 import { TransformComponent } from '../../components/transform-component.js';
 import { Component } from '../../ecs/component.js';
 
