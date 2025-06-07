@@ -2,6 +2,7 @@
 // Unit tests for the EntityManager class (Browser/Mocha/Chai)
 
 // Imports relative to the test-runner.html location
+import '../../../test/setup.js';
 import { ComponentRegistry } from '../../ecs/component-registry.js';
 import { EntityManager } from '../../ecs/entity-manager.js';
 import { EventEmitter } from '../../utils/event-emitter.js';

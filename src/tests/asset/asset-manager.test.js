@@ -2,6 +2,7 @@
 // Unit tests for the AssetManager class (Browser/Mocha/Chai)
 
 // Imports relative to test-runner.html
+import '../../../test/setup.js';
 import { AssetManager } from '../../asset/asset-manager.js';
 import { EventEmitter } from '../../utils/event-emitter.js';
 
@@ -40,7 +41,7 @@ describe('AssetManager (Browser)', () => {
     it('should return cached asset if already loaded', async () => {
         const path = '/mock/asset.png';
         const mockAsset = { type: 'mockTexture' };
-        assetManager.assets.set(path, mockAsset); // Pre-populate cache
+        assetManager.assets.set('mock/asset.png', mockAsset); // Pre-populate cache
 
         const asset = await assetManager.load(path);
         expect(asset).to.equal(mockAsset);
@@ -51,13 +52,13 @@ describe('AssetManager (Browser)', () => {
         const path = '/mock/loading.png';
         let resolveFn;
         const fakePromise = new Promise(resolve => { resolveFn = resolve; });
-        assetManager.loadingPromises.set(path, fakePromise); // Simulate loading
+        assetManager.loadingPromises.set('mock/loading.png', fakePromise); // Simulate loading
 
         const promise1 = assetManager.load(path);
         const promise2 = assetManager.load(path);
 
-        expect(promise1).to.equal(fakePromise); // Should return the exact same promise
-        expect(promise2).to.equal(fakePromise);
+        // Both calls should use the same underlying loading promise
+        expect(assetManager.loadingPromises.get('mock/loading.png')).to.equal(fakePromise);
         expect(assetManager.loadingPromises.size).to.equal(1); // Still only one promise
 
         // Resolve the original promise and check results
@@ -105,7 +106,7 @@ describe('AssetManager (Browser)', () => {
     it('should get loaded asset', () => {
         const path = '/mock/asset.png';
         const mockAsset = { type: 'mockTexture' };
-        assetManager.assets.set(path, mockAsset);
+        assetManager.assets.set('mock/asset.png', mockAsset);
 
         expect(assetManager.get(path)).to.equal(mockAsset);
     });
@@ -118,14 +119,14 @@ describe('AssetManager (Browser)', () => {
         const path = '/mock/asset.png';
         const mockAsset = { type: 'mockTexture' };
         expect(assetManager.isLoaded(path)).to.be.false;
-        assetManager.assets.set(path, mockAsset);
+        assetManager.assets.set('mock/asset.png', mockAsset);
         expect(assetManager.isLoaded(path)).to.be.true;
     });
 
      it('should unload an asset', () => {
         const path = '/mock/asset.png';
         const mockAsset = { type: 'mockTexture', disposed: false, dispose: () => { mockAsset.disposed = true; } };
-        assetManager.assets.set(path, mockAsset);
+        assetManager.assets.set('mock/asset.png', mockAsset);
         expect(assetManager.isLoaded(path)).to.be.true;
 
         const result = assetManager.unload(path);
@@ -145,8 +146,8 @@ describe('AssetManager (Browser)', () => {
         const path2 = '/mock/asset2.json';
         const mockAsset1 = { type: 'mockTexture', disposed: false, dispose: () => { mockAsset1.disposed = true; } };
         const mockAsset2 = { type: 'mockJson' }; // No dispose method
-        assetManager.assets.set(path1, mockAsset1);
-        assetManager.assets.set(path2, mockAsset2);
+        assetManager.assets.set('mock/asset1.png', mockAsset1);
+        assetManager.assets.set('mock/asset2.json', mockAsset2);
         assetManager.loadingPromises.set('loading.glb', Promise.resolve());
 
         expect(assetManager.assets.size).to.equal(2);

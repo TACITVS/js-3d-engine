@@ -2,6 +2,7 @@
 // Unit tests for the SystemManager class (Browser/Mocha/Chai)
 
 // Imports relative to test-runner.html
+import '../../../test/setup.js';
 import { SystemManager } from '../../ecs/system-manager.js';
 import { EntityManager } from '../../ecs/entity-manager.js';
 import { ComponentRegistry } from '../../ecs/component-registry.js';
