@@ -1,0 +1,14 @@
+{
+  "name": "js-3d-engine",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "mocha \"src/tests/**/*.test.js\""
+  },
+  "devDependencies": {
+    "chai": "^4.3.7",
+    "jsdom": "^24.0.0",
+    "mocha": "^10.2.0",
+    "three": "^0.164.1"
+  }
+}

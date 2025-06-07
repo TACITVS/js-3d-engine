@@ -2,6 +2,7 @@
 // Unit tests for the ComponentRegistry class (Browser/Mocha/Chai)
 
 // Imports relative to the test-runner.html location
+import '../../../test/setup.js';
 import { ComponentRegistry } from '../../ecs/component-registry.js';
 import { Component } from '../../ecs/component.js';
 
