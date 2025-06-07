@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Engine Test Suite</title>
+    <link href="https://unpkg.com/mocha@10.2.0/mocha.css" rel="stylesheet" />
+    <style>
+        /* Optional: Adjust styling */
+        #mocha h1 { font-size: 1.2em; margin: 10px 0; }
+        #mocha .suite h2 { font-size: 1em; margin: 5px 0; }
+        #mocha-stats { font-size: 0.9em; margin-top: 10px; }
+        #mocha .test.pass::before { color: #0a0; }
+        #mocha .test.fail::before { color: #a00; }
+        #mocha .test pre { background-color: #333; color: #f99; padding: 5px; margin-top: 5px; border-radius: 3px; white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <div id="mocha"></div>
+
+    <script src="https://unpkg.com/chai@4.3.7/chai.js"></script>
+    <script src="https://unpkg.com/mocha@10.2.0/mocha.js"></script>
+
+    <script>
+        // Setup Mocha to run in BDD mode (describe, it)
+        mocha.setup('bdd');
+        // Make Chai's "expect" assertion style available globally for tests
+        window.expect = chai.expect;
+    </script>
+
+    <script type="module" src="./src/utils/event-emitter.js"></script>
+    <script type="module" src="./src/ecs/component.js"></script>
+    <script type="module" src="./src/ecs/component-registry.js"></script>
+    <script type="module" src="./src/components/transform-component.js"></script>
+    <script type="module" src="./src/ecs/entity-manager.js"></script>
+    <script type="module" src="./src/ecs/system-manager.js"></script> 
+	<script type="module" src="./src/tests/ecs/component-registry.test.js"></script>
+    <script type="module" src="./src/tests/ecs/entity-manager.test.js"></script>
+    <script type="module" src="./src/tests/ecs/system-manager.test.js"></script>
+    <script type="module" src="./src/tests/components/transform-component.test.js"></script>
+	<script type="module" src="./src/tests/asset/asset-manager.test.js"></script>
+	<script type="module" src="./src/asset/asset-manager.js"></script>
+    <script type="module">
+        // Run the tests after all modules are loaded
+        console.log("Running Mocha tests...");
+        mocha.run(failures => {
+            // Optional: do something after tests run, like reporting status
+            if (failures > 0) {
+                console.error(`${failures} test(s) failed.`);
+            } else {
+                console.log("All tests passed!");
+            }
+        });
+    </script>
+</body>
+</html>

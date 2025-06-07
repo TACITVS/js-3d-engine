@@ -1,0 +1,65 @@
+// breakout-level-1.json
+// Added "tag" component to key entities
+{
+  "entities": [
+    {
+      "id": 1, // Camera
+      "components": {
+        "transform": { "position": [0, 15, 10], "rotation": [-55, 0, 0], "scale": [1, 1, 1], "parent": null },
+        "camera": { "type": "perspective", "fov": 55, "near": 0.1, "far": 1000, "isActive": true },
+        "tag": { "tags": ["mainCamera"] } // Optional: Tag camera too
+      }
+    },
+    {
+      "id": 2, // Ambient Light
+      "components": {
+        "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1], "parent": null },
+        "light": { "type": "ambient", "color": 16777215, "intensity": 0.7 }
+      }
+    },
+    {
+      "id": 3, // Directional Light
+      "components": {
+        "transform": { "position": [0, 10, 10], "rotation": [0, 0, 0], "scale": [1, 1, 1], "parent": null },
+        "light": { "type": "directional", "color": 16777215, "intensity": 0.9, "castShadow": true }
+      }
+    },
+    {
+      "id": 4, // Game State Entity
+      "components": {
+        "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1], "parent": null },
+        "score": { "score": 0, "lives": 3 },
+        "tag": { "tags": ["gameStateManager"] } // <-- ADDED TAG
+      }
+    },
+    {
+      "id": 5, // Paddle
+      "components": {
+        "transform": { "position": [0, 0.2, 0], "rotation": [0, 0, 0], "scale": [2.5, 0.4, 0.6], "parent": null },
+        "renderable": { "type": "Cube", "color": 2280699, "roughness": 0.4, "metalness": 0.2 },
+        "paddle": { "speed": 18.0 },
+        "physics": { "bodyType": "kinematicPositionBased", "colliderType": "cuboid", "colliderSize": [1.25, 0.2, 0.3], "restitution": 0.1, "friction": 0.2 },
+        "tag": { "tags": ["playerPaddle"] } // <-- ADDED TAG
+      }
+    },
+    {
+      "id": 6, // Ball
+      "components": {
+        "transform": { "position": [0, 1.5, 0], "rotation": [0, 0, 0], "scale": [0.5, 0.5, 0.5], "parent": null },
+        "renderable": { "type": "Sphere", "color": 16767590, "roughness": 0.1, "metalness": 0.1 },
+        "ball": { "baseSpeed": 10.0, "isLaunched": false },
+        "physics": { "bodyType": "dynamic", "density": 1.5, "colliderType": "ball", "colliderSize": [0.25], "restitution": 1.0, "friction": 0.0, "ccdEnabled": true }, // colliderSize corrected to [radius]
+        "tag": { "tags": ["gameBall"] } // <-- ADDED TAG
+      }
+    },
+    // Boundaries (IDs 7-10) - unchanged
+    { "id": 7, "components": { /* ... wall ... */ } },
+    { "id": 8, "components": { /* ... wall ... */ } },
+    { "id": 9, "components": { /* ... ceiling ... */ } },
+    { "id": 10, "components": { /* ... floor sensor ... */ } },
+
+    // Bricks (IDs 11-70) - unchanged
+    {"id": 11, "components": { /* ... brick ... */ } } // Shortened for brevity
+    // ... other bricks ...
+  ]
+}

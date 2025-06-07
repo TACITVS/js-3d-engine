@@ -1,0 +1,318 @@
+{
+  "entities": [
+    {
+      "id": 1,
+      "components": {
+        "transform": {
+          "position": [
+            69.82595825195312,
+            5,
+            34.91297912597656
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        "renderable": {
+          "type": "Cube",
+          "color": 3178751,
+          "visible": true,
+          "castShadow": true,
+          "receiveShadow": true,
+          "assetPath": null,
+          "roughness": 0.6,
+          "metalness": 0.1
+        },
+        "physics": {
+          "bodyType": "dynamic",
+          "mass": 1,
+          "restitution": 0.7,
+          "friction": 0.5,
+          "colliderType": "cuboid",
+          "colliderSize": [
+            1,
+            1,
+            1
+          ],
+          "linearDamping": 0.1,
+          "angularDamping": 0.1,
+          "rigidBodyHandle": 2.121995791e-314,
+          "colliderHandle": 2.121995791e-314
+        },
+        "velocityData": {
+          "x": 2,
+          "y": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "id": 2,
+      "components": {
+        "transform": {
+          "position": [
+            5,
+            4,
+            5
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "camera": {
+          "type": "perspective",
+          "fov": 45,
+          "aspect": 1.4807339449541284,
+          "near": 0.1,
+          "far": 1000,
+          "isActive": true
+        }
+      }
+    },
+    {
+      "id": 3,
+      "components": {
+        "transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "light": {
+          "type": "ambient",
+          "color": 16777215,
+          "intensity": 0.5,
+          "distance": 0,
+          "decay": 2,
+          "castShadow": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "components": {
+        "transform": {
+          "position": [
+            5,
+            10,
+            7
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "light": {
+          "type": "directional",
+          "color": 16777215,
+          "intensity": 0.8,
+          "distance": 0,
+          "decay": 2,
+          "castShadow": true
+        }
+      }
+    },
+    {
+      "id": 5,
+      "components": {
+        "transform": {
+          "position": [
+            0,
+            -0.5,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            10,
+            0.1,
+            10
+          ]
+        },
+        "renderable": {
+          "type": "Ground",
+          "color": 11184810,
+          "visible": true,
+          "castShadow": true,
+          "receiveShadow": true,
+          "assetPath": null,
+          "roughness": 0.6,
+          "metalness": 0.1
+        },
+        "physics": {
+          "bodyType": "static",
+          "colliderType": "cuboid",
+          "colliderSize": [
+            1,
+            1,
+            1
+          ],
+          "rigidBodyHandle": 2.1219957915e-314,
+          "colliderHandle": 2.1219957915e-314
+        }
+      }
+    },
+    {
+      "id": 6,
+      "components": {
+        "transform": {
+          "position": [
+            0,
+            0,
+            -3.891478173282425
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "renderable": {
+          "type": "Cube",
+          "color": 8969608,
+          "visible": true,
+          "castShadow": true,
+          "receiveShadow": true,
+          "assetPath": null,
+          "roughness": 0.6,
+          "metalness": 0.1
+        }
+      }
+    },
+    {
+      "id": 7,
+      "components": {
+        "transform": {
+          "position": [
+            -2.275200183086691,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "renderable": {
+          "type": "Sphere",
+          "color": 8947933,
+          "visible": true,
+          "castShadow": true,
+          "receiveShadow": true,
+          "assetPath": null,
+          "roughness": 0.6,
+          "metalness": 0.1
+        }
+      }
+    },
+    {
+      "id": 8,
+      "components": {
+        "transform": {
+          "position": [
+            0,
+            2.4407707292920637,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "renderable": {
+          "type": "Sphere",
+          "color": 8947933,
+          "visible": true,
+          "castShadow": true,
+          "receiveShadow": true,
+          "assetPath": null,
+          "roughness": 0.6,
+          "metalness": 0.1
+        }
+      }
+    },
+    {
+      "id": 9,
+      "components": {
+        "transform": {
+          "position": [
+            2.9558994971942685,
+            2.157288873033713,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "renderable": {
+          "type": "Cube",
+          "color": 8969608,
+          "visible": true,
+          "castShadow": true,
+          "receiveShadow": true,
+          "assetPath": null,
+          "roughness": 0.6,
+          "metalness": 0.1
+        }
+      }
+    }
+  ]
+}

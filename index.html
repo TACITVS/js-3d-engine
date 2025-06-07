@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Editor & Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* --- Styles unchanged --- */
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: Arial, sans-serif; background-color: #1e1e1e; color: #e0e0e0; }
+        #editor-container { width: 100%; height: 100%; position: relative; overflow: hidden; pointer-events: none; }
+        #editor-container > canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; display: block; pointer-events: auto; }
+        .editor-ui-panel { box-shadow: 0 3px 8px rgba(0,0,0,0.4); background-color: rgba(45, 45, 48, 0.9); box-sizing: border-box; position: absolute; color: #e0e0e0; border-radius: 5px; border: 1px solid rgba(80, 80, 80, 0.7); z-index: 100; transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; pointer-events: auto; }
+        .editor-toolbar { top: 10px; left: 10px; width: 150px; padding: 10px; display: flex; flex-direction: column; z-index: 200; }
+        .editor-hierarchy-panel { top: 10px; left: 170px; width: 260px; height: calc(50% - 15px); overflow-y: auto; padding: 10px; }
+        .editor-material-panel { top: calc(50% + 5px); left: 170px; width: 260px; height: calc(50% - 15px); overflow-y: auto; padding: 10px; }
+        .editor-inspector { top: 10px; right: 10px; width: 280px; height: calc(100% - 60px); overflow-y: auto; padding: 10px; }
+        .editor-status-bar { bottom: 10px; left: 10px; right: 10px; height: 25px; padding: 5px 10px; font-size: 0.9em; opacity: 0.9; z-index: 210; line-height: 25px; }
+        #game-ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; color: white; font-family: '"Press Start 2P", monospace'; text-transform: uppercase; z-index: 300; opacity: 0; visibility: hidden; transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; }
+        #game-score { position: absolute; top: 15px; left: 15px; font-size: 20px; text-shadow: 2px 2px 0px rgba(0,0,0,0.7); }
+        #game-lives { position: absolute; top: 15px; right: 15px; font-size: 20px; text-shadow: 2px 2px 0px rgba(0,0,0,0.7); }
+        #game-bricks { position: absolute; top: 45px; left: 15px; font-size: 14px; text-shadow: 1px 1px 0px rgba(0,0,0,0.7); color: #dddddd; }
+        #game-message { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; font-weight: bold; text-shadow: 3px 3px 0px rgba(0,0,0,0.7); text-align: center; line-height: 1.4; width: 80%; white-space: pre-wrap; }
+        #editor-container.mode-game .editor-hierarchy-panel, #editor-container.mode-game .editor-material-panel, #editor-container.mode-game .editor-inspector, #editor-container.mode-game .editor-status-bar { opacity: 0; visibility: hidden; pointer-events: none; }
+        #editor-container.mode-game .editor-toolbar { opacity: 1; visibility: visible; background-color: transparent; border: none; box-shadow: none; pointer-events: auto; }
+        #editor-container.mode-game .editor-toolbar > *:not(#stop-button) { display: none; }
+        #editor-container.mode-game .editor-toolbar #stop-button { display: block !important; pointer-events: auto; }
+        #editor-container.mode-game #game-ui-overlay { opacity: 1; visibility: visible; }
+        #editor-container.mode-editor .editor-hierarchy-panel, #editor-container.mode-editor .editor-material-panel, #editor-container.mode-editor .editor-inspector, #editor-container.mode-editor .editor-status-bar { opacity: 1; visibility: visible; pointer-events: auto; }
+        #editor-container.mode-editor .editor-toolbar { opacity: 1; visibility: visible; pointer-events: auto; background-color: rgba(45, 45, 48, 0.9); border: 1px solid rgba(80, 80, 80, 0.7); box-shadow: 0 3px 8px rgba(0,0,0,0.4); }
+        #editor-container.mode-editor .editor-toolbar > * { display: block; }
+        #editor-container.mode-editor .editor-toolbar button { display: block; }
+        #editor-container.mode-editor .editor-toolbar div[style*="height: 1px"] { display: block; }
+        #editor-container.mode-editor #game-ui-overlay { opacity: 0; visibility: hidden; }
+        .hierarchy-item { padding: 3px 0px; margin: 1px 0; border-radius: 3px; transition: background-color 0.1s ease-in-out; font-size: 0.95em; }
+        .hierarchy-item > div { padding: 2px 8px; }
+        .hierarchy-item > div:hover { background-color: rgba(80, 85, 95, 0.7) !important; cursor: pointer; }
+        .hierarchy-item.selected > div { background-color: rgba(60, 90, 130, 0.8) !important; font-weight: bold; }
+        .hierarchy-icon { margin-right: 6px; display: inline-block; width: 1.2em; text-align: center; }
+        .hierarchy-toggle { width:1em; display:inline-block; text-align:center; margin-right:4px; user-select: none; flex-shrink: 0; }
+        .hierarchy-toggle:not(:empty) { cursor: pointer; }
+        ul.hierarchy-subtree { list-style:none; padding:0; margin:0; display: none; }
+        .hierarchy-item.expanded > ul.hierarchy-subtree { display: block; }
+        .hierarchy-item.dragging { opacity: 0.5; border: 1px dashed #aaa; }
+        .hierarchy-item.drag-over > div, .hierarchy-root.drag-over { background-color: rgba(100, 150, 255, 0.3) !important; outline: 1px dashed #77aaff; }
+        button { padding: 6px 12px; background: #4a4a4e; color: #e0e0e0; border: 1px solid #666; border-radius: 4px; cursor: pointer; font-size: 0.9em; transition: background-color 0.1s ease; }
+        button:hover:not(:disabled) { background: #5a5a5e; border-color: #777; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .editor-toolbar button { margin-bottom: 4px; width: 95%; }
+        input[type="text"], input[type="number"], select { background-color: #2a2a2e; color: #e0e0e0; border: 1px solid #555; border-radius: 3px; padding: 4px 6px; box-sizing: border-box; font-size: 0.95em; }
+        input:focus, select:focus { outline: none; border-color: #77aaff; box-shadow: 0 0 3px rgba(100, 150, 255, 0.5); }
+        input[type="color"] { min-height: 24px; padding: 1px 2px; border: 1px solid #555; background-color: #2a2a2e; cursor: pointer;}
+        input[type="checkbox"] { vertical-align: middle; }
+        details.component-section { margin-bottom: 12px; border: 1px solid #444; border-radius: 4px; background-color: rgba(55, 55, 60, 0.6); }
+        details.component-section > summary { font-weight: bold; cursor: pointer; padding: 6px 8px; background-color: #3a3f4b; border-bottom: 1px solid #444; border-radius: 4px 4px 0 0; outline: none; user-select: none; }
+        details.component-section > div { padding: 10px; }
+        .inspector-fields table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .inspector-fields td { padding: 4px 2px; vertical-align: middle; }
+        .inspector-fields td:first-child { width: 40%; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+</head>
+<body>
+    <div id="editor-container" class="mode-editor"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+            "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.11.2/rapier.es.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        // Engine Core & UI Manager
+        import { createEngine }     from './src/core.js';
+        import { UIManager }        from './src/ui.js';
+        import { engineConfig }     from './src/engine-config.js';
+
+        // Core Systems
+        import { ThreeRenderSystem } from './src/systems/three-render-system.js';
+        import { EditorGizmoSystem } from './src/systems/editor/editor-gizmo-system.js';
+        import { InputManagerSystem } from './src/systems/input-manager-system.js';
+        import { GameStateManager } from './src/systems/game-state-manager.js';
+
+        // Integrations (Physics)
+        import { setupIntegrations } from './src/integration.js'; // Imports RapierPhysicsSystem implicitly
+
+        // Behavior Systems
+        import { SpinSystem } from './src/systems/behaviors/spin-system.js';
+        import { PlayerControlSystem } from './src/systems/behaviors/player-control-system.js';
+
+        // Make Default Scene Creator Globally Accessible
+        window.createDefaultEditorScene = createDefaultEditorScene;
+
+        /** Main function */
+        async function initializeEditorAndGame() {
+            console.log('--- Starting Editor & Game Initialization ---');
+            const container = document.getElementById('editor-container');
+            if (!container) { console.error("Container 'editor-container' not found!"); return; }
+
+            try {
+                // Create Engine
+                console.log('Creating engine...');
+                const engine = createEngine(container);
+
+                // Register Core Systems
+                // Consider priority and dependencies
+                console.log('Registering core systems...');
+                await engine.registerSystem('gameStateManager', new GameStateManager());   // Priority 1
+                await engine.registerSystem('inputManager', new InputManagerSystem());     // Priority 5
+
+                // --- MODIFIED: Renderer registered before Gizmo ---
+                const renderer = new ThreeRenderSystem();
+                await engine.registerSystem('renderer', renderer);                        // Priority 100 (Must be registered before Gizmo)
+                // --- END MODIFICATION ---
+
+                // Register Physics (requires engine instance, gets Rapier internally)
+                console.log('Setting up physics integration...');
+                const integrations = await setupIntegrations(engine); // Registers 'physics' system (Priority 50)
+                if (!engine.getSystem('physics')) { console.warn("Physics integration potentially failed."); }
+                else { console.log('Physics integration setup complete.'); }
+
+                // Register Behavior Systems
+                await engine.registerSystem('playerControl', new PlayerControlSystem());   // Priority 55 (After Physics, Input)
+                await engine.registerSystem('spin', new SpinSystem());                     // Priority 60
+
+                // Register Editor Systems
+                // --- MODIFIED: Gizmo registered after Renderer ---
+                await engine.registerSystem('editorGizmo', new EditorGizmoSystem());       // Priority 90 (Depends on Renderer)
+                // --- END MODIFICATION ---
+
+                // --- Game systems (e.g., Breakout) are NOT registered here by default ---
+
+                // Initialize Engine (Activates registered systems based on state/mode)
+                engine.initialize();
+
+                // Initialize Editor UI
+                console.log('Initializing Editor UI Manager...');
+                const uiManager = new UIManager(engine).initialize(container);
+
+                // Create Initial Editor Scene
+                console.log('Creating initial generic editor scene...');
+                createDefaultEditorScene(engine);
+                // Sync physics after default scene creation
+                const physicsSystem = engine.getSystem('physics');
+                physicsSystem?.syncInitialScene();
+
+                // Show Renderer
+                console.log('Showing renderer...');
+                renderer.show();
+
+                // Load Editor State
+                console.log('Loading editor preferences...');
+                engine.loadEditorState();
+
+                // Start Loop
+                console.log('Starting engine loop (in Editor Mode)...');
+                engine.run();
+
+                // Expose Globals
+                window.engine = engine; window.uiManager = uiManager; window.integrations = integrations;
+                console.log('--- Editor & Game Initialization Complete ---');
+
+            } catch (error) {
+                 console.error('Initialization failed:', error);
+                 if (container) { container.innerHTML = `<div style="color: red; background: #111; border: 2px solid red; padding: 20px; height: 100%; box-sizing: border-box; white-space: pre-wrap; font-family: monospace;">Initialization Error: ${error.message || error}<br><br>Stack Trace:<br>${error.stack || 'Not available'}</div>`; }
+            }
+        }
+
+        /** Creates a basic scene using engineConfig defaults */
+        function createDefaultEditorScene(engine) {
+            /* ... (Function implementation unchanged) ... */
+             console.log("Creating default generic editor scene entities...");
+             engine.createEntity('EditorCamera', { transform: { position: [...engineConfig.camera.defaultEditorPosition], rotation: [...engineConfig.camera.defaultEditorRotation] }, camera: { type: engineConfig.camera.type, fov: engineConfig.camera.fov, near: engineConfig.camera.near, far: engineConfig.camera.far, isActive: true } });
+             engine.createEntity('AmbientLight', { light: { type: 'ambient', color: engineConfig.light.color, intensity: engineConfig.light.ambientIntensity } });
+             engine.createEntity('DirectionalLight', { transform: { position: [5, 10, 7] }, light: { type: 'directional', color: engineConfig.light.color, intensity: engineConfig.light.directionalIntensity, castShadow: true } });
+             const groundOptions = { transform: { position: [0, -0.05, 0], scale: [20, 0.1, 20] }, renderable: { type: 'Cube', color: engineConfig.renderable.defaultGroundColor, receiveShadow: true, roughness: engineConfig.renderable.defaultGroundRoughness, metalness: engineConfig.renderable.metalness } }; if (engine.getSystem('physics')) { groundOptions.physics = { bodyType: 'static', colliderType: 'cuboid', colliderSize: [10, 0.05, 10], friction: engineConfig.physics.friction, restitution: engineConfig.physics.restitution }; } engine.createEntity('Ground', groundOptions);
+             const cubeOptions = { transform: { position: [0, 1, 0] }, renderable: { type: 'Cube', color: 0xccaa88, castShadow: true }, spin: { speed: [...(engineConfig.spin.speed || [0,90,0])] } }; if (engine.getSystem('physics')) { cubeOptions.physics = { bodyType: 'kinematicPositionBased', colliderType: 'cuboid', colliderSize: [0.5, 0.5, 0.5], restitution: engineConfig.physics.restitution, friction: engineConfig.physics.friction, }; } engine.createEntity('SpinningCube', cubeOptions);
+             const sphereOptions = { transform: { position: [-2, 1.5, 2], scale: [1.5, 1.5, 1.5] }, renderable: { type: 'Sphere', color: 0x88aacc, castShadow: true } }; if (engine.getSystem('physics')) { sphereOptions.physics = { bodyType: 'dynamic', density: engineConfig.physics.density, colliderType: 'ball', colliderSize: [0.75], restitution: engineConfig.physics.restitution, friction: engineConfig.physics.friction, linearDamping: 1.0, angularDamping: 1.0 }; sphereOptions.playerControl = { moveForce: 25.0, maxSpeed: 6.0, useForce: true }; sphereOptions.tag = { tags: ['player'] }; } engine.createEntity('PlayerSphere', sphereOptions);
+             console.log("Default generic editor scene created.");
+         }
+
+        // Start Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeEditorAndGame();
+        });
+    </script>
+</body>
+</html>
