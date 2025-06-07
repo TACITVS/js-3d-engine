@@ -2,6 +2,7 @@
 // @version 1.6.0 - Implemented fixed timestep for physics update.
 // @previous 1.5.8 - Call _updateSystemActivation after mode/state change in enterGameMode/enterEditorMode.
 
+import * as logger from './utils/logger.js';
 import { EventEmitter } from './utils/event-emitter.js';
 import { EntityManager } from './ecs/entity-manager.js';
 import { SystemManager } from './ecs/system-manager.js';
@@ -37,7 +38,7 @@ const MAX_ACCUMULATED_TIME = FIXED_DELTA_TIME * 5; // Prevent spiral of death if
 
 export class Engine {
     constructor(container) {
-        console.log(`[Engine Constructor] START v1.6.0`); // Version increment
+        logger.log(`[Engine Constructor] START v1.6.0`); // Version increment
         if (!container) throw new Error("Engine requires a container element.");
         this.container = container;
         this.eventEmitter = new EventEmitter();
@@ -69,12 +70,12 @@ export class Engine {
 
         this._registerCoreComponents();
         this._setupPersistenceListeners();
-        console.log("[Engine Constructor] END");
+        logger.log("[Engine Constructor] END");
     }
 
     _registerCoreComponents() {
         // ... (unchanged) ...
-        console.log("Engine: Registering CORE components...");
+        logger.log("Engine: Registering CORE components...");
         this.componentRegistry.register('transform', TransformComponent);
         this.componentRegistry.register('renderable', RenderableComponent);
         this.componentRegistry.register('camera', CameraComponent);
@@ -84,9 +85,9 @@ export class Engine {
         this.componentRegistry.register('physics', PhysicsComponent);
         this.componentRegistry.register('spin', SpinComponent);
         this.componentRegistry.register('playerControl', PlayerControlComponent);
-        console.log("Engine: Core components registered.");
-        console.log("Registered component types:", this.componentRegistry.getComponentTypeNames());
-        console.log("Engine: Core component registration phase COMPLETE.");
+        logger.log("Engine: Core components registered.");
+        logger.log("Registered component types:", this.componentRegistry.getComponentTypeNames());
+        logger.log("Engine: Core component registration phase COMPLETE.");
     }
 
     // --- Getters (unchanged) ---
@@ -101,16 +102,16 @@ export class Engine {
 
     // --- Methods ---
     initialize() {
-        console.log("Engine: Initializing...");
+        logger.log("Engine: Initializing...");
         // Initial system activation based on default mode ('editor')
         this._updateSystemActivation();
-        console.log("Engine: Initialization complete.");
+        logger.log("Engine: Initialization complete.");
         return this;
     }
 
     run() {
         if (this.isRunning) return;
-        console.log("Engine: Starting main loop...");
+        logger.log("Engine: Starting main loop...");
         this.isRunning = true;
         this.time.lastFrameTime = performance.now();
         this.time._accumulator = 0; // Reset accumulator on start
@@ -119,7 +120,7 @@ export class Engine {
 
     stop() {
         if (!this.isRunning) return;
-        console.log("Engine: Stopping main loop...");
+        logger.log("Engine: Stopping main loop...");
         this.isRunning = false;
         if (this._rafId !== null) cancelAnimationFrame(this._rafId);
         this._rafId = null;
@@ -144,7 +145,7 @@ export class Engine {
 
         // Prevent spiral of death by capping accumulated time
         if (this.time._accumulator > MAX_ACCUMULATED_TIME) {
-            // console.warn(`Engine Loop: Accumulated time (${this.time._accumulator.toFixed(4)}s) exceeded max (${MAX_ACCUMULATED_TIME}s). Clamping.`);
+            // logger.warn(`Engine Loop: Accumulated time (${this.time._accumulator.toFixed(4)}s) exceeded max (${MAX_ACCUMULATED_TIME}s). Clamping.`);
             this.time._accumulator = MAX_ACCUMULATED_TIME;
         }
 
@@ -160,7 +161,7 @@ export class Engine {
                     physicsSystem.update({ deltaTime: fixedTimeStepScaled, elapsed: this.time.elapsed });
                     physicsSteps++;
                 } catch (physicsError) {
-                    console.error("[Engine Loop] CRITICAL ERROR during Physics Update:", physicsError);
+                    logger.error("[Engine Loop] CRITICAL ERROR during Physics Update:", physicsError);
                     this.stop();
                     // Display error... (omitted for brevity)
                     return;
@@ -169,7 +170,7 @@ export class Engine {
             this.time._accumulator -= fixedTimeStepScaled;
             this.time.elapsed += fixedTimeStepScaled; // Increment total elapsed time by fixed steps
         }
-        // if (physicsSteps > 1) console.log(`Physics steps this frame: ${physicsSteps}`); // Optional debug log
+        // if (physicsSteps > 1) logger.log(`Physics steps this frame: ${physicsSteps}`); // Optional debug log
 
         // --- END FIXED TIMESTEP LOGIC ---
 
@@ -196,7 +197,7 @@ export class Engine {
             }
 
         } catch (error) {
-            console.error("[Engine Loop] CRITICAL ERROR during Variable Update:", error);
+            logger.error("[Engine Loop] CRITICAL ERROR during Variable Update:", error);
             this.stop();
             // Display error... (omitted for brevity)
             return; // Stop loop execution
@@ -210,18 +211,18 @@ export class Engine {
 
     destroy() {
         // ... (unchanged) ...
-        console.log("Engine: Destroying...");
+        logger.log("Engine: Destroying...");
         this.stop();
         if (this.eventEmitter) { this.eventEmitter.off('entitySelected', this._debouncedSaveEditorState); this.eventEmitter.off('cameraTransformChanged', this._debouncedSaveEditorState); }
         clearTimeout(this._saveStateTimeout);
         this.systemManager?.cleanupAll(); this.commandManager?.clear(); this.entityManager?.clear(); this.assetManager?.clear(); this.eventEmitter?.offAll();
         this.container = null; this.entityManager = null; this.systemManager = null; this.componentRegistry = null; this.eventEmitter = null; this.assetManager = null; this.commandManager = null; this.prefabManager = null; this.time = null;
-        console.log("Engine: Destroyed.");
+        logger.log("Engine: Destroyed.");
     }
 
     async registerSystem(name, system) {
         // ... (unchanged) ...
-        if (!this.systemManager) { console.error("Engine: SystemManager missing during registerSystem."); return this; }
+        if (!this.systemManager) { logger.error("Engine: SystemManager missing during registerSystem."); return this; }
         await this.systemManager.register(name, system);
         this._updateSystemActivation();
         return this;
@@ -240,13 +241,13 @@ export class Engine {
 
     createEntity(typeHint = 'Entity', options = {}) {
         // ... (unchanged) ...
-        if (!this.entityManager || !this.componentRegistry) { console.error("Engine: EntityManager or ComponentRegistry not available for createEntity."); return null; }
-        const id = this.entityManager.createEntity(); if (id === null) { console.error("Engine: Failed to create new entity ID."); return null; }
+        if (!this.entityManager || !this.componentRegistry) { logger.error("Engine: EntityManager or ComponentRegistry not available for createEntity."); return null; }
+        const id = this.entityManager.createEntity(); if (id === null) { logger.error("Engine: Failed to create new entity ID."); return null; }
         const transformData = { ...(options.transform || {}) }; if (transformData.position === undefined) transformData.position = [...engineConfig.transform.position]; if (transformData.rotation === undefined) transformData.rotation = [...engineConfig.transform.rotation]; if (transformData.scale === undefined) transformData.scale = [...engineConfig.transform.scale]; if (transformData.parent === undefined) transformData.parent = null; this.addComponent(id, 'transform', transformData);
         const primitiveTypes = ['Cube', 'Sphere', 'Ground']; const modelTypes = ['Model', 'ModelEntity']; const optionsRenderable = options.renderable || {}; let needsRenderable = false; let finalRenderableType = optionsRenderable.type;
         if (primitiveTypes.includes(typeHint)) { needsRenderable = true; if (!finalRenderableType) finalRenderableType = typeHint; } else if (modelTypes.includes(typeHint) && optionsRenderable.assetPath) { needsRenderable = true; finalRenderableType = 'Model'; } else if (options.renderable) { needsRenderable = true; if (!finalRenderableType) finalRenderableType = engineConfig.renderable.type || 'Cube'; }
         if (needsRenderable) { const renderableData = { ...optionsRenderable }; renderableData.type = finalRenderableType; if (renderableData.type !== 'Model') { if (renderableData.color === undefined) renderableData.color = (renderableData.type === 'Ground') ? engineConfig.renderable.defaultGroundColor : engineConfig.renderable.color; if (renderableData.roughness === undefined) renderableData.roughness = (renderableData.type === 'Ground') ? engineConfig.renderable.defaultGroundRoughness : engineConfig.renderable.roughness; if (renderableData.metalness === undefined) renderableData.metalness = engineConfig.renderable.metalness; } if (renderableData.visible === undefined) renderableData.visible = engineConfig.renderable.visible; if (renderableData.castShadow === undefined) renderableData.castShadow = engineConfig.renderable.castShadow; if (renderableData.receiveShadow === undefined) renderableData.receiveShadow = (renderableData.type === 'Ground') ? true : engineConfig.renderable.receiveShadow; this.addComponent(id, 'renderable', renderableData); }
-        for (const componentType in options) { if (componentType === 'transform' || componentType === 'renderable') continue; if (this.componentRegistry.has(componentType)) { this.addComponent(id, componentType, options[componentType]); } else { console.warn(`Engine.createEntity: Component type '${componentType}' provided in options for entity ${id} but not registered.`); } }
+        for (const componentType in options) { if (componentType === 'transform' || componentType === 'renderable') continue; if (this.componentRegistry.has(componentType)) { this.addComponent(id, componentType, options[componentType]); } else { logger.warn(`Engine.createEntity: Component type '${componentType}' provided in options for entity ${id} but not registered.`); } }
         this.eventEmitter.emit('entityCreated', { id, type: typeHint, options }); return id;
     }
 
@@ -255,14 +256,14 @@ export class Engine {
         if (!this.entityManager || !this.hasEntity(id)) return false;
         const wasSelected = (this.selectedEntityId === id);
         const success = this.entityManager.removeEntity(id);
-        if (success && wasSelected) { this.selectEntity(null); } else if (!success) { console.error(`Engine: Failed to remove entity ${id} via EntityManager.`); }
+        if (success && wasSelected) { this.selectEntity(null); } else if (!success) { logger.error(`Engine: Failed to remove entity ${id} via EntityManager.`); }
         return success;
     }
 
     addComponent(entityId, type, data = {}) {
         // ... (unchanged) ...
-        if (!this.entityManager?.hasEntity(entityId)) { console.warn(`Engine: AddComponent called on missing entity ${entityId}.`); return null; }
-        if (!this.componentRegistry?.has(type)) { console.warn(`Engine: Component type '${type}' not registered.`); return null; }
+        if (!this.entityManager?.hasEntity(entityId)) { logger.warn(`Engine: AddComponent called on missing entity ${entityId}.`); return null; }
+        if (!this.componentRegistry?.has(type)) { logger.warn(`Engine: Component type '${type}' not registered.`); return null; }
         const source = data.source || 'engine'; const componentData = { ...data }; delete componentData.source;
         const componentInstance = this.entityManager.addComponent(entityId, type, componentData);
         if (componentInstance && this.mode === 'editor') { if (type === 'transform' && this.entityManager.hasComponent(entityId, 'camera') && this.getSystem('renderer')?.activeCameraEntityId === entityId) { this.eventEmitter.emit('cameraTransformChanged'); } }
@@ -293,7 +294,7 @@ export class Engine {
     selectEntity(id) {
         // ... (unchanged) ...
         if (this.mode !== 'editor') { return; }
-        if (id !== null && !this.hasEntity(id)) { console.warn(`Engine: Attempted to select non-existent entity ${id}. Deselecting.`); id = null; }
+        if (id !== null && !this.hasEntity(id)) { logger.warn(`Engine: Attempted to select non-existent entity ${id}. Deselecting.`); id = null; }
         if (this.selectedEntityId !== id) { this.selectedEntityId = id; this.eventEmitter.emit('entitySelected', { id }); }
     }
 
@@ -305,27 +306,27 @@ export class Engine {
     enterGameMode() {
         // ... (unchanged) ...
         if (this.mode === 'game') return;
-        console.log("Engine: Entering Game Mode...");
+        logger.log("Engine: Entering Game Mode...");
         this.selectEntity(null); this.mode = 'game';
         const gameStateManager = this.getSystem('gameStateManager');
-        if (gameStateManager) { console.log("[Engine] Calling gameStateManager.setState(GameState.PLAYING)..."); gameStateManager.setState(GameState.PLAYING); console.log("[Engine] gameStateManager.setState call returned."); this._updateSystemActivation(); } else { console.warn("Engine: GameStateManager not found. Cannot set game state. Updating activation based on mode."); this._updateSystemActivation(); }
+        if (gameStateManager) { logger.log("[Engine] Calling gameStateManager.setState(GameState.PLAYING)..."); gameStateManager.setState(GameState.PLAYING); logger.log("[Engine] gameStateManager.setState call returned."); this._updateSystemActivation(); } else { logger.warn("Engine: GameStateManager not found. Cannot set game state. Updating activation based on mode."); this._updateSystemActivation(); }
         this.container?.classList.remove('mode-editor'); this.container?.classList.add('mode-game');
-        console.log("[Engine] Emitting gameModeEntered event..."); this.eventEmitter.emit('gameModeEntered');
-        console.log("Engine: Game Mode Entered.");
+        logger.log("[Engine] Emitting gameModeEntered event..."); this.eventEmitter.emit('gameModeEntered');
+        logger.log("Engine: Game Mode Entered.");
     }
 
     enterEditorMode() {
         // ... (unchanged) ...
-        console.log(`[Engine] enterEditorMode called. Current mode: ${this.mode}`);
+        logger.log(`[Engine] enterEditorMode called. Current mode: ${this.mode}`);
         if (this.mode === 'editor') return;
-        console.log("Engine: Entering Editor Mode...");
+        logger.log("Engine: Entering Editor Mode...");
         this.mode = 'editor'; this.time.gameTimeScale = 1.0;
         const gameStateManager = this.getSystem('gameStateManager');
-        if (gameStateManager) { console.log("[Engine] Calling gameStateManager.setState(GameState.EDITOR)..."); gameStateManager.setState(GameState.EDITOR); console.log("[Engine] gameStateManager.setState call returned."); this._updateSystemActivation(); } else { console.warn("Engine: GameStateManager not found. Cannot set game state. Updating activation based on mode."); this._updateSystemActivation(); }
+        if (gameStateManager) { logger.log("[Engine] Calling gameStateManager.setState(GameState.EDITOR)..."); gameStateManager.setState(GameState.EDITOR); logger.log("[Engine] gameStateManager.setState call returned."); this._updateSystemActivation(); } else { logger.warn("Engine: GameStateManager not found. Cannot set game state. Updating activation based on mode."); this._updateSystemActivation(); }
         this.container?.classList.remove('mode-game'); this.container?.classList.add('mode-editor');
-        console.log("[Engine] Emitting editorModeEntered event..."); this.eventEmitter.emit('editorModeEntered');
+        logger.log("[Engine] Emitting editorModeEntered event..."); this.eventEmitter.emit('editorModeEntered');
         this.loadEditorState();
-        console.log("Engine: Editor Mode Entered.");
+        logger.log("Engine: Editor Mode Entered.");
     }
 
     _updateSystemActivation() {
@@ -334,7 +335,7 @@ export class Engine {
         const allSystems = this.systemManager.getSystemNames(); const gameStateManager = this.getSystem('gameStateManager');
         const currentState = gameStateManager?.getState() ?? (this.mode === 'game' ? GameState.PLAYING : GameState.EDITOR);
         allSystems.forEach(name => {
-            const system = this.systemManager.get(name); if (!system) { console.warn(`_updateSystemActivation: System '${name}' not found.`); return; }
+            const system = this.systemManager.get(name); if (!system) { logger.warn(`_updateSystemActivation: System '${name}' not found.`); return; }
             let shouldBeActive = false;
             if (name === 'gameStateManager' || name === 'inputManager' || name === 'renderer') { shouldBeActive = true; }
             else if (name === 'editorGizmo') { shouldBeActive = (currentState === GameState.EDITOR); }
@@ -343,7 +344,7 @@ export class Engine {
             else { shouldBeActive = (currentState !== GameState.EDITOR); }
             const state = this.systemManager.systemStates.get(name);
             if (state && state.isInitialized) { if (this.systemManager.isSystemActive(name) !== shouldBeActive) { this.systemManager.setSystemActive(name, shouldBeActive); } }
-            else if (!state) { console.warn(`_updateSystemActivation: State not found for system '${name}'.`); }
+            else if (!state) { logger.warn(`_updateSystemActivation: State not found for system '${name}'.`); }
         });
     }
 
@@ -358,13 +359,13 @@ export class Engine {
     saveEditorState() {
         // ... (unchanged) ...
         if (this.mode !== 'editor') return;
-        try { const rendererSystem = this.getSystem('renderer'); const activeCameraId = rendererSystem?.activeCameraEntityId; let cameraState = null; if (activeCameraId !== null && this.hasEntity(activeCameraId)) { const camTransform = this.getComponent(activeCameraId, 'transform'); if (camTransform) { cameraState = { position: camTransform.getPosition(), rotation: camTransform.getRotation() }; } } const state = { selectedEntityId: this.selectedEntityId, activeCameraId: activeCameraId, cameraTransform: cameraState }; localStorage.setItem(EDITOR_STATE_KEY, JSON.stringify(state)); } catch (error) { console.error("Failed to save editor state:", error); }
+        try { const rendererSystem = this.getSystem('renderer'); const activeCameraId = rendererSystem?.activeCameraEntityId; let cameraState = null; if (activeCameraId !== null && this.hasEntity(activeCameraId)) { const camTransform = this.getComponent(activeCameraId, 'transform'); if (camTransform) { cameraState = { position: camTransform.getPosition(), rotation: camTransform.getRotation() }; } } const state = { selectedEntityId: this.selectedEntityId, activeCameraId: activeCameraId, cameraTransform: cameraState }; localStorage.setItem(EDITOR_STATE_KEY, JSON.stringify(state)); } catch (error) { logger.error("Failed to save editor state:", error); }
     }
 
     loadEditorState() {
         // ... (unchanged) ...
         if (this.mode !== 'editor') return;
-        try { const savedState = localStorage.getItem(EDITOR_STATE_KEY); if (!savedState) { return; } const state = JSON.parse(savedState); const rendererSystem = this.getSystem('renderer'); const activeCameraId = state.activeCameraId; if (rendererSystem && activeCameraId !== null && this.hasEntity(activeCameraId) && state.cameraTransform) { const camComp = this.getComponent(activeCameraId, 'camera'); const camTransform = this.getComponent(activeCameraId, 'transform'); if(camComp && camTransform) { this.addComponent(activeCameraId, 'transform', { position: state.cameraTransform.position, rotation: state.cameraTransform.rotation, source: 'loadEditorState' }); const cameraObject = rendererSystem.entityObjects.get(activeCameraId)?.threeObject; const shouldBeActive = camComp.isActive === undefined || camComp.isActive; if (shouldBeActive) { if (cameraObject && rendererSystem.activeCameraEntityId !== activeCameraId) { rendererSystem._activateCamera(activeCameraId, cameraObject); } else if (rendererSystem.activeCameraEntityId === activeCameraId && rendererSystem.orbitControls) { rendererSystem.orbitControls.update(); } } } else { console.warn(`Cannot restore camera transform: Camera component or Transform component missing for entity ${activeCameraId}.`); } } else if (activeCameraId !== null) { } let entityToSelect = null; if (state.selectedEntityId !== undefined && state.selectedEntityId !== null) { if(this.hasEntity(state.selectedEntityId)) { entityToSelect = state.selectedEntityId; } else { } } this.selectEntity(entityToSelect); } catch (error) { console.error("Failed to load editor state:", error); }
+        try { const savedState = localStorage.getItem(EDITOR_STATE_KEY); if (!savedState) { return; } const state = JSON.parse(savedState); const rendererSystem = this.getSystem('renderer'); const activeCameraId = state.activeCameraId; if (rendererSystem && activeCameraId !== null && this.hasEntity(activeCameraId) && state.cameraTransform) { const camComp = this.getComponent(activeCameraId, 'camera'); const camTransform = this.getComponent(activeCameraId, 'transform'); if(camComp && camTransform) { this.addComponent(activeCameraId, 'transform', { position: state.cameraTransform.position, rotation: state.cameraTransform.rotation, source: 'loadEditorState' }); const cameraObject = rendererSystem.entityObjects.get(activeCameraId)?.threeObject; const shouldBeActive = camComp.isActive === undefined || camComp.isActive; if (shouldBeActive) { if (cameraObject && rendererSystem.activeCameraEntityId !== activeCameraId) { rendererSystem._activateCamera(activeCameraId, cameraObject); } else if (rendererSystem.activeCameraEntityId === activeCameraId && rendererSystem.orbitControls) { rendererSystem.orbitControls.update(); } } } else { logger.warn(`Cannot restore camera transform: Camera component or Transform component missing for entity ${activeCameraId}.`); } } else if (activeCameraId !== null) { } let entityToSelect = null; if (state.selectedEntityId !== undefined && state.selectedEntityId !== null) { if(this.hasEntity(state.selectedEntityId)) { entityToSelect = state.selectedEntityId; } else { } } this.selectEntity(entityToSelect); } catch (error) { logger.error("Failed to load editor state:", error); }
     }
 
 } // End Engine Class

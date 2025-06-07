@@ -2,6 +2,7 @@
 // @version 1.2.8 - Removed dependency on RenderableComponent/render object for physics body creation.
 // @previous 1.2.7 - Added detailed logging to applyImpulse and getLinearVelocity.
 
+import * as logger from '../../utils/logger.js';
 import * as THREE from 'three';
 import { engineConfig } from '../../engine-config.js';
 
@@ -36,8 +37,8 @@ export class RapierPhysicsSystem {
 
     async initialize(entityManager, eventEmitter, engineInstance) {
         const emitter = this.engine.getEventEmitter();
-        if (!emitter) { console.error("RapierPhysicsSystem: EventEmitter not found on engine!"); return; }
-        console.log("RapierPhysicsSystem: Initializing and attaching event listeners...");
+        if (!emitter) { logger.error("RapierPhysicsSystem: EventEmitter not found on engine!"); return; }
+        logger.log("RapierPhysicsSystem: Initializing and attaching event listeners...");
         emitter.on('componentAdded', ({ entityId, componentType }) => {
             // --- MODIFICATION: Only require physics and transform ---
             if (componentType === 'physics' || componentType === 'transform') {
@@ -60,13 +61,13 @@ export class RapierPhysicsSystem {
         emitter.on('entityRemoved', ({ id }) => this.removePhysicsBody(id));
         emitter.on('sceneImported', () => this.syncInitialScene());
         emitter.on('entityRestored', ({ id }) => this.syncEntityPhysics(id));
-        console.log("RapierPhysicsSystem: Initialization complete.");
+        logger.log("RapierPhysicsSystem: Initialization complete.");
     }
 
     removePhysicsBody(entityId) {
-        // console.log(`[Rapier Sys] removePhysicsBody called for Entity ID: ${entityId}`); // Keep commented unless debugging removal
+        // logger.log(`[Rapier Sys] removePhysicsBody called for Entity ID: ${entityId}`); // Keep commented unless debugging removal
         if (!this.world) {
-            // console.log(`[Rapier Sys Remove ${entityId}] World not available, clearing maps only.`);
+            // logger.log(`[Rapier Sys Remove ${entityId}] World not available, clearing maps only.`);
             this.entityBodyMap.delete(entityId);
             const cH = this.entityColliderMap.get(entityId);
             if (cH !== undefined) {
@@ -77,37 +78,37 @@ export class RapierPhysicsSystem {
         }
         const rBH = this.entityBodyMap.get(entityId);
         if (rBH !== undefined) {
-            // console.log(`[Rapier Sys Remove ${entityId}] Found RigidBody handle ${rBH}.`);
+            // logger.log(`[Rapier Sys Remove ${entityId}] Found RigidBody handle ${rBH}.`);
             const body = this.world.getRigidBody(rBH);
             if (body) {
-                // console.log(`[Rapier Sys Remove ${entityId}] Found RigidBody object.`);
+                // logger.log(`[Rapier Sys Remove ${entityId}] Found RigidBody object.`);
                 const cH = this.entityColliderMap.get(entityId);
                 if (cH !== undefined) {
-                    // console.log(`[Rapier Sys Remove ${entityId}] Found Collider handle ${cH}.`);
+                    // logger.log(`[Rapier Sys Remove ${entityId}] Found Collider handle ${cH}.`);
                     const c = this.world.getCollider(cH);
                     if (c) {
-                        // console.log(`[Rapier Sys Remove ${entityId}] Removing Collider object.`);
+                        // logger.log(`[Rapier Sys Remove ${entityId}] Removing Collider object.`);
                         this.world.removeCollider(c, false); // false = don't wake neighbours? Check API if needed
                     } else {
-                        // console.log(`[Rapier Sys Remove ${entityId}] Collider object not found for handle ${cH}.`);
+                        // logger.log(`[Rapier Sys Remove ${entityId}] Collider object not found for handle ${cH}.`);
                     }
                     this.colliderEntityMap.delete(cH);
                     this.entityColliderMap.delete(entityId);
                 } else {
-                    // console.log(`[Rapier Sys Remove ${entityId}] No Collider handle found in map.`);
+                    // logger.log(`[Rapier Sys Remove ${entityId}] No Collider handle found in map.`);
                 }
-                // console.log(`[Rapier Sys Remove ${entityId}] Removing RigidBody object.`);
+                // logger.log(`[Rapier Sys Remove ${entityId}] Removing RigidBody object.`);
                 this.world.removeRigidBody(body);
             } else {
-                // console.log(`[Rapier Sys Remove ${entityId}] RigidBody object not found for handle ${rBH}.`);
+                // logger.log(`[Rapier Sys Remove ${entityId}] RigidBody object not found for handle ${rBH}.`);
             }
             this.entityBodyMap.delete(entityId);
         } else {
-            // console.log(`[Rapier Sys Remove ${entityId}] No RigidBody handle found in map.`);
+            // logger.log(`[Rapier Sys Remove ${entityId}] No RigidBody handle found in map.`);
             // Still check for lingering collider maps just in case state is inconsistent
             const cH = this.entityColliderMap.get(entityId);
             if (cH !== undefined) {
-                // console.log(`[Rapier Sys Remove ${entityId}] Found lingering Collider handle ${cH}, removing from maps.`);
+                // logger.log(`[Rapier Sys Remove ${entityId}] Found lingering Collider handle ${cH}, removing from maps.`);
                 this.colliderEntityMap.delete(cH);
                 this.entityColliderMap.delete(entityId);
             }
@@ -115,28 +116,28 @@ export class RapierPhysicsSystem {
     }
 
     syncInitialScene() {
-         console.log("RapierPhysicsSystem: Performing full scene sync...");
+         logger.log("RapierPhysicsSystem: Performing full scene sync...");
          const entitiesToRemove = Array.from(this.entityBodyMap.keys());
-         // console.log(`[Rapier Sync] Removing ${entitiesToRemove.length} existing bodies...`);
+         // logger.log(`[Rapier Sync] Removing ${entitiesToRemove.length} existing bodies...`);
          entitiesToRemove.forEach(id => this.removePhysicsBody(id));
          this.entityBodyMap.clear(); this.entityColliderMap.clear(); this.colliderEntityMap.clear();
 
-         if (!this.engine || !this.engine.entityManager) { console.warn("RapierPhysicsSystem: Engine/EM unavailable for full sync."); return; }
+         if (!this.engine || !this.engine.entityManager) { logger.warn("RapierPhysicsSystem: Engine/EM unavailable for full sync."); return; }
          const em = this.engine.entityManager;
          // --- MODIFICATION: Query only for physics and transform ---
          const physicsEntities = em.getEntitiesWithComponents(['physics', 'transform']);
          // --- END MODIFICATION ---
-         console.log(`[Rapier Sync] Found ${physicsEntities.length} entities with physics & transform components.`);
+         logger.log(`[Rapier Sync] Found ${physicsEntities.length} entities with physics & transform components.`);
          physicsEntities.forEach(id => this.syncEntityPhysics(id));
-         console.log(`RapierPhysicsSystem: Full scene sync complete. Attempted sync for ${physicsEntities.length} entities.`);
+         logger.log(`RapierPhysicsSystem: Full scene sync complete. Attempted sync for ${physicsEntities.length} entities.`);
      }
 
     syncEntityPhysics(entityId) {
-        // console.log(`[Physics Sync ${entityId}] Starting sync...`); // Keep commented unless debugging sync
+        // logger.log(`[Physics Sync ${entityId}] Starting sync...`); // Keep commented unless debugging sync
         if (!this.engine || !this.engine.entityManager || !this.world) { return; }
         const em = this.engine.entityManager;
         if (!em.hasEntity(entityId)) {
-            // console.log(`[Physics Sync ${entityId}] Entity no longer exists. Removing physics body.`);
+            // logger.log(`[Physics Sync ${entityId}] Entity no longer exists. Removing physics body.`);
             this.removePhysicsBody(entityId);
             return;
         }
@@ -149,7 +150,7 @@ export class RapierPhysicsSystem {
 
         if (!physicsComp || !transformComp) {
             // If required components are missing, ensure any existing physics body is removed
-            // console.log(`[Physics Sync ${entityId}] Missing physics or transform component. Removing physics body.`);
+            // logger.log(`[Physics Sync ${entityId}] Missing physics or transform component. Removing physics body.`);
             this.removePhysicsBody(entityId);
             return;
         }
@@ -159,7 +160,7 @@ export class RapierPhysicsSystem {
         // const renderer = this.engine.getSystem('renderer');
         // const renderObjectExists = renderer?.entityObjects?.has(entityId);
         // if (!renderObjectExists) {
-        //     console.log(`[Physics Sync ${entityId}] Deferring: Renderer object not found yet.`);
+        //     logger.log(`[Physics Sync ${entityId}] Deferring: Renderer object not found yet.`);
         //     if (this.entityBodyMap.has(entityId)) { this.removePhysicsBody(entityId); }
         //     return;
         // }
@@ -175,15 +176,15 @@ export class RapierPhysicsSystem {
         else { needsRecreation = true; }
 
         if (needsRecreation) {
-            // console.log(`[Physics Sync ${entityId}] Needs Recreation (Existing: ${!!rigidBody}, TargetType: ${targetBodyType})`);
+            // logger.log(`[Physics Sync ${entityId}] Needs Recreation (Existing: ${!!rigidBody}, TargetType: ${targetBodyType})`);
             if (rigidBody) { this.removePhysicsBody(entityId); }
             const bodyDesc = this._createBodyDesc(physicsComp, transformComp, targetIsStatic);
-            if (!bodyDesc) { console.error(`[Physics Sync ${entityId}] Failed to create BodyDesc.`); return; }
+            if (!bodyDesc) { logger.error(`[Physics Sync ${entityId}] Failed to create BodyDesc.`); return; }
             rigidBody = this.world.createRigidBody(bodyDesc);
-            if (!rigidBody) { console.error(`[Physics Sync ${entityId}] Failed to create RigidBody.`); return; }
+            if (!rigidBody) { logger.error(`[Physics Sync ${entityId}] Failed to create RigidBody.`); return; }
             rigidBodyHandle = rigidBody.handle;
             this.entityBodyMap.set(entityId, rigidBodyHandle);
-            // console.log(`[Physics Sync ${entityId}] Created new RigidBody handle ${rigidBodyHandle}`);
+            // logger.log(`[Physics Sync ${entityId}] Created new RigidBody handle ${rigidBodyHandle}`);
 
             const currentColliderHandle = this.entityColliderMap.get(entityId);
             if (currentColliderHandle !== undefined) { const c = this.world.getCollider(currentColliderHandle); if(c) this.world.removeCollider(c, false); this.entityColliderMap.delete(entityId); this.colliderEntityMap.delete(currentColliderHandle); }
@@ -193,22 +194,22 @@ export class RapierPhysicsSystem {
             // --- END MODIFICATION ---
             if (colliderDesc) {
                  const collider = this.world.createCollider(colliderDesc, rigidBody);
-                 if (!collider) { console.error(`[Physics Sync ${entityId}] Failed to create Collider.`); return; }
+                 if (!collider) { logger.error(`[Physics Sync ${entityId}] Failed to create Collider.`); return; }
                  this.entityColliderMap.set(entityId, collider.handle);
                  this.colliderEntityMap.set(collider.handle, entityId);
-                 // console.log(`[Physics Sync ${entityId}] Created new Collider handle ${collider.handle}`);
-            } else { console.warn(`[Physics Sync ${entityId}] Failed to create ColliderDesc.`); }
+                 // logger.log(`[Physics Sync ${entityId}] Created new Collider handle ${collider.handle}`);
+            } else { logger.warn(`[Physics Sync ${entityId}] Failed to create ColliderDesc.`); }
 
             // Reset rotation if becoming static
             if (targetIsStatic) {
                 if (transformComp.rotation[0] !== 0 || transformComp.rotation[1] !== 0 || transformComp.rotation[2] !== 0) {
-                     // console.log(`[Physics Sync ${entityId}] Body is static, resetting rotation in TransformComponent.`);
+                     // logger.log(`[Physics Sync ${entityId}] Body is static, resetting rotation in TransformComponent.`);
                      this.engine.addComponent(entityId, 'transform', { rotation: [0, 0, 0], source: 'physicsSystem_StaticReset' });
                 }
             }
 
         } else if (rigidBody) { // Update existing body
-            // console.log(`[Physics Sync ${entityId}] Updating existing RigidBody ${rigidBodyHandle}`);
+            // logger.log(`[Physics Sync ${entityId}] Updating existing RigidBody ${rigidBodyHandle}`);
             // Update position/rotation FROM transform component TO physics body
             // (Only if not controlled by physics simulation itself, e.g., for kinematic or initial static placement)
             // If the body is dynamic, physics system update loop will sync FROM physics TO transform
@@ -239,7 +240,7 @@ export class RapierPhysicsSystem {
                      // This part is still complex. A simple check:
                      const needsColliderRecreation = this._checkColliderNeedsRecreation(collider, physicsComp, transformComp);
                      if (needsColliderRecreation) {
-                          console.warn(`[Physics Sync ${entityId}] Collider needs recreation due to scale/type change. Recreating...`);
+                          logger.warn(`[Physics Sync ${entityId}] Collider needs recreation due to scale/type change. Recreating...`);
                           // Remove old collider
                           this.world.removeCollider(collider, false);
                           this.entityColliderMap.delete(entityId);
@@ -248,10 +249,10 @@ export class RapierPhysicsSystem {
                           const newColliderDesc = this._createColliderDesc(physicsComp, transformComp);
                           if (newColliderDesc) {
                               const newCollider = this.world.createCollider(newColliderDesc, rigidBody);
-                              if (!newCollider) { console.error(`[Physics Sync ${entityId}] Failed to recreate Collider.`); return; }
+                              if (!newCollider) { logger.error(`[Physics Sync ${entityId}] Failed to recreate Collider.`); return; }
                               this.entityColliderMap.set(entityId, newCollider.handle);
                               this.colliderEntityMap.set(newCollider.handle, entityId);
-                          } else { console.warn(`[Physics Sync ${entityId}] Failed to create ColliderDesc during recreation.`); }
+                          } else { logger.warn(`[Physics Sync ${entityId}] Failed to create ColliderDesc during recreation.`); }
                      }
                  }
              }
@@ -292,7 +293,7 @@ export class RapierPhysicsSystem {
                 return true;
             }
         } catch (e) {
-            console.error(`[Physics CheckRecreate ${collider.handle}] Error checking collider:`, e);
+            logger.error(`[Physics CheckRecreate ${collider.handle}] Error checking collider:`, e);
             return true; // Recreate on error
         }
     }
@@ -301,7 +302,7 @@ export class RapierPhysicsSystem {
 
     _createBodyDesc(physicsComp, transformComp, forceIdentityRotation = false) {
         // ... (implementation unchanged) ...
-        if (!this.RAPIER) { console.error("RapierPhysicsSystem: RAPIER instance missing!"); return null; }
+        if (!this.RAPIER) { logger.error("RapierPhysicsSystem: RAPIER instance missing!"); return null; }
         const bodyType = this._getRapierBodyType(physicsComp.bodyType);
         let desc;
         if (bodyType === this.RAPIER.RigidBodyType.Dynamic) desc = this.RAPIER.RigidBodyDesc.dynamic();
@@ -320,7 +321,7 @@ export class RapierPhysicsSystem {
 
     // --- MODIFICATION: Removed renderableComp parameter ---
     _createColliderDesc(physicsComp, transformComp) {
-        if (!this.RAPIER || !physicsComp || !transformComp) { console.error("RapierPhysicsSystem: Missing component data for _createColliderDesc!"); return null; }
+        if (!this.RAPIER || !physicsComp || !transformComp) { logger.error("RapierPhysicsSystem: Missing component data for _createColliderDesc!"); return null; }
     // --- END MODIFICATION ---
         const type = physicsComp.colliderType || 'cuboid';
         const scale = transformComp.scale;
@@ -333,7 +334,7 @@ export class RapierPhysicsSystem {
         // Validate colliderSize or use default
         if (!Array.isArray(size) || size.length === 0 || !size.every(n => typeof n === 'number' && isFinite(n))) {
             size = engineConfig.physics.colliderSize ? [...engineConfig.physics.colliderSize] : [0.5];
-            // console.warn(`Physics: Invalid colliderSize for entity, using default: ${JSON.stringify(size)}`); // Less noisy log
+            // logger.warn(`Physics: Invalid colliderSize for entity, using default: ${JSON.stringify(size)}`); // Less noisy log
         }
 
         let desc = null; const MIN_DIM = 1e-6; // Minimum dimension to avoid zero-size colliders
@@ -362,14 +363,14 @@ export class RapierPhysicsSystem {
                 desc = this.RAPIER.ColliderDesc.capsule(halfHeight, radius);
             }
             else {
-                console.warn(`Physics: Unsupported collider type "${type}". Creating default cuboid.`);
+                logger.warn(`Physics: Unsupported collider type "${type}". Creating default cuboid.`);
                 const hx = Math.max(MIN_DIM, 0.5 * sx); // Default half-extents based on scale
                 const hy = Math.max(MIN_DIM, 0.5 * sy);
                 const hz = Math.max(MIN_DIM, 0.5 * sz);
                 desc = this.RAPIER.ColliderDesc.cuboid(hx, hy, hz);
             }
         } catch (e) {
-            console.error(`Physics: Error creating Rapier collider desc for ${type}:`, e);
+            logger.error(`Physics: Error creating Rapier collider desc for ${type}:`, e);
             return null;
         }
 
@@ -387,26 +388,26 @@ export class RapierPhysicsSystem {
 
     _getRapierBodyType(typeString) {
         // ... (implementation unchanged) ...
-        if (!this.RAPIER) { console.error("RapierPhysicsSystem: RAPIER instance missing!"); return 0; } // Default to static
+        if (!this.RAPIER) { logger.error("RapierPhysicsSystem: RAPIER instance missing!"); return 0; } // Default to static
         switch (typeString?.toLowerCase()) {
             case 'dynamic': return this.RAPIER.RigidBodyType.Dynamic;
             case 'static': case 'fixed': return this.RAPIER.RigidBodyType.Fixed;
             case 'kinematic': case 'kinematicposition': case 'kinematicpositionbased': return this.RAPIER.RigidBodyType.KinematicPositionBased;
             case 'kinematicvelocity': case 'kinematicvelocitybased': return this.RAPIER.RigidBodyType.KinematicVelocityBased;
-            default: console.warn(`Physics: Unknown body type "${typeString}". Defaulting to Fixed.`); return this.RAPIER.RigidBodyType.Fixed;
+            default: logger.warn(`Physics: Unknown body type "${typeString}". Defaulting to Fixed.`); return this.RAPIER.RigidBodyType.Fixed;
         }
     }
 
     update(time) {
         // ... (implementation unchanged) ...
         if (!this.active || !this.world) return;
-        if (!this.engine || !this.engine.entityManager) { console.warn("RapierPhysicsSystem: Engine/EM not available for update."); return; }
+        if (!this.engine || !this.engine.entityManager) { logger.warn("RapierPhysicsSystem: Engine/EM not available for update."); return; }
         const em = this.engine.entityManager;
 
         try {
             this.world.step(this.eventQueue); // Step physics world
         } catch (e) {
-            console.error("Rapier world step failed:", e);
+            logger.error("Rapier world step failed:", e);
             this.active = false; // Stop physics updates on step failure
             return;
         }
@@ -422,10 +423,10 @@ export class RapierPhysicsSystem {
                 return;
             }
             // Ensure entity still exists and has transform
-            if (!em.hasEntity(entityId)) { console.warn(`RapierPhysicsSystem: Entity ${entityId} no longer exists during update sync. Removing body.`); this.removePhysicsBody(entityId); return; }
+            if (!em.hasEntity(entityId)) { logger.warn(`RapierPhysicsSystem: Entity ${entityId} no longer exists during update sync. Removing body.`); this.removePhysicsBody(entityId); return; }
             const transform = em.getComponent(entityId, 'transform');
-            if (!transform) { /* console.warn(`RapierPhysicsSystem: Entity ${entityId} missing TransformComponent during update sync.`); */ return; } // Less noise
-            if (!Array.isArray(transform.position) || transform.position.length !== 3 || !Array.isArray(transform.rotation) || transform.rotation.length !== 3) { console.warn(`RapierPhysicsSystem: Entity ${entityId} has invalid transform structure during update sync.`); return; }
+            if (!transform) { /* logger.warn(`RapierPhysicsSystem: Entity ${entityId} missing TransformComponent during update sync.`); */ return; } // Less noise
+            if (!Array.isArray(transform.position) || transform.position.length !== 3 || !Array.isArray(transform.rotation) || transform.rotation.length !== 3) { logger.warn(`RapierPhysicsSystem: Entity ${entityId} has invalid transform structure during update sync.`); return; }
 
             const pos = body.translation(); // {x, y, z}
             const rot = body.rotation();   // {x, y, z, w}
@@ -467,7 +468,7 @@ export class RapierPhysicsSystem {
         try {
             body.setLinvel(velocity, wakeUp);
             return true;
-        } catch (e) { console.error(`RapierPhysicsSystem: Error setting linear velocity for entity ${entityId}:`, e); return false; }
+        } catch (e) { logger.error(`RapierPhysicsSystem: Error setting linear velocity for entity ${entityId}:`, e); return false; }
     }
 
     setAngularVelocity(entityId, velocity, wakeUp = true) {
@@ -478,7 +479,7 @@ export class RapierPhysicsSystem {
         const body = this.world.getRigidBody(handle);
         if (!body) return false;
         try { body.setAngvel(velocity, wakeUp); return true; }
-        catch (e) { console.error(`RapierPhysicsSystem: Error setting angular velocity for entity ${entityId}:`, e); return false; }
+        catch (e) { logger.error(`RapierPhysicsSystem: Error setting angular velocity for entity ${entityId}:`, e); return false; }
     }
 
     resetForces(entityId, wakeUp = true) {
@@ -489,7 +490,7 @@ export class RapierPhysicsSystem {
         const body = this.world.getRigidBody(handle);
         if (!body) return false;
         try { body.resetForces(wakeUp); return true; }
-        catch (e) { console.error(`RapierPhysicsSystem: Error resetting forces for entity ${entityId}:`, e); return false; }
+        catch (e) { logger.error(`RapierPhysicsSystem: Error resetting forces for entity ${entityId}:`, e); return false; }
     }
 
     resetTorques(entityId, wakeUp = true) {
@@ -500,7 +501,7 @@ export class RapierPhysicsSystem {
         const body = this.world.getRigidBody(handle);
         if (!body) return false;
         try { body.resetTorques(wakeUp); return true; }
-        catch (e) { console.error(`RapierPhysicsSystem: Error resetting torques for entity ${entityId}:`, e); return false; }
+        catch (e) { logger.error(`RapierPhysicsSystem: Error resetting torques for entity ${entityId}:`, e); return false; }
     }
 
     setPosition(entityId, position, wakeUp = true) {
@@ -522,74 +523,74 @@ export class RapierPhysicsSystem {
                 }
             }
             return true;
-        } catch (e) { console.error(`RapierPhysicsSystem: Error setting position for entity ${entityId}:`, e); return false; }
+        } catch (e) { logger.error(`RapierPhysicsSystem: Error setting position for entity ${entityId}:`, e); return false; }
     }
 
     getLinearVelocity(entityId) {
-        // console.log(`[Rapier Sys getLinearVelocity] Called for Entity ID: ${entityId}`); // Keep commented unless debugging
-        if (!this.world) { console.warn(`[Rapier Sys getLinearVelocity ${entityId}] World not available.`); return null; }
+        // logger.log(`[Rapier Sys getLinearVelocity] Called for Entity ID: ${entityId}`); // Keep commented unless debugging
+        if (!this.world) { logger.warn(`[Rapier Sys getLinearVelocity ${entityId}] World not available.`); return null; }
         const handle = this.entityBodyMap.get(entityId);
-        if (handle === undefined) { console.warn(`[Rapier Sys getLinearVelocity ${entityId}] RigidBody handle not found in map.`); return null; }
+        if (handle === undefined) { logger.warn(`[Rapier Sys getLinearVelocity ${entityId}] RigidBody handle not found in map.`); return null; }
         const body = this.world.getRigidBody(handle);
-        if (!body) { console.warn(`[Rapier Sys getLinearVelocity ${entityId}] RigidBody object not found for handle ${handle}.`); return null; }
+        if (!body) { logger.warn(`[Rapier Sys getLinearVelocity ${entityId}] RigidBody object not found for handle ${handle}.`); return null; }
         try {
             const linvel = body.linvel();
-            // console.log(`[Rapier Sys getLinearVelocity ${entityId}] Returning linvel:`, linvel); // Keep commented unless debugging
+            // logger.log(`[Rapier Sys getLinearVelocity ${entityId}] Returning linvel:`, linvel); // Keep commented unless debugging
             return linvel; // Returns {x, y, z}
-        } catch (e) { console.error(`[Rapier Sys getLinearVelocity ${entityId}] Error getting linear velocity:`, e); return null; }
+        } catch (e) { logger.error(`[Rapier Sys getLinearVelocity ${entityId}] Error getting linear velocity:`, e); return null; }
     }
 
     getAngularVelocity(entityId) {
         // ... (implementation unchanged) ...
         if (!this.world) return null; const handle = this.entityBodyMap.get(entityId); if (handle === undefined) return null; const body = this.world.getRigidBody(handle); if (!body) return null;
-        try { return body.angvel(); } catch (e) { console.error(`RapierPhysicsSystem: Error getting angular velocity for entity ${entityId}:`, e); return null; }
+        try { return body.angvel(); } catch (e) { logger.error(`RapierPhysicsSystem: Error getting angular velocity for entity ${entityId}:`, e); return null; }
     }
 
     getPosition(entityId) {
         // ... (implementation unchanged) ...
         if (!this.world) return null; const handle = this.entityBodyMap.get(entityId); if (handle === undefined) return null; const body = this.world.getRigidBody(handle); if (!body) return null;
-        try { return body.translation(); } catch (e) { console.error(`RapierPhysicsSystem: Error getting position for entity ${entityId}:`, e); return null; }
+        try { return body.translation(); } catch (e) { logger.error(`RapierPhysicsSystem: Error getting position for entity ${entityId}:`, e); return null; }
     }
 
     getRotation(entityId) {
         // ... (implementation unchanged) ...
         if (!this.world) return null; const handle = this.entityBodyMap.get(entityId); if (handle === undefined) return null; const body = this.world.getRigidBody(handle); if (!body) return null;
-        try { return body.rotation(); } catch (e) { console.error(`RapierPhysicsSystem: Error getting rotation for entity ${entityId}:`, e); return null; }
+        try { return body.rotation(); } catch (e) { logger.error(`RapierPhysicsSystem: Error getting rotation for entity ${entityId}:`, e); return null; }
     }
 
     applyImpulse(entityId, impulse, wakeUp = true) {
-        // console.log(`[Rapier Sys applyImpulse] Called for Entity ID: ${entityId}, Impulse:`, impulse); // Keep commented unless debugging
-        if (!this.world) { console.warn(`[Rapier Sys applyImpulse ${entityId}] World not available.`); return false; }
+        // logger.log(`[Rapier Sys applyImpulse] Called for Entity ID: ${entityId}, Impulse:`, impulse); // Keep commented unless debugging
+        if (!this.world) { logger.warn(`[Rapier Sys applyImpulse ${entityId}] World not available.`); return false; }
         const handle = this.entityBodyMap.get(entityId);
-        if (handle === undefined) { console.warn(`[Rapier Sys applyImpulse ${entityId}] RigidBody handle not found in map.`); return false; }
+        if (handle === undefined) { logger.warn(`[Rapier Sys applyImpulse ${entityId}] RigidBody handle not found in map.`); return false; }
         const body = this.world.getRigidBody(handle);
-        if (!body) { console.warn(`[Rapier Sys applyImpulse ${entityId}] RigidBody object not found for handle ${handle}.`); return false; }
-        if (!body.isDynamic()) { console.warn(`[Rapier Sys applyImpulse ${entityId}] Cannot apply impulse to non-dynamic body (Type: ${body.bodyType()}).`); return false; }
+        if (!body) { logger.warn(`[Rapier Sys applyImpulse ${entityId}] RigidBody object not found for handle ${handle}.`); return false; }
+        if (!body.isDynamic()) { logger.warn(`[Rapier Sys applyImpulse ${entityId}] Cannot apply impulse to non-dynamic body (Type: ${body.bodyType()}).`); return false; }
         try {
              const velBefore = body.linvel(); // Get velocity BEFORE applying
              body.applyImpulse(impulse, wakeUp);
              const velAfter = body.linvel(); // Get velocity AFTER applying
-             // console.log(`[Rapier Sys applyImpulse ${entityId}] Vel Before: {x:${velBefore.x.toFixed(3)}, y:${velBefore.y.toFixed(3)}, z:${velBefore.z.toFixed(3)}}, Impulse Applied: {x:${impulse.x.toFixed(3)}, y:${impulse.y.toFixed(3)}, z:${impulse.z.toFixed(3)}}, Vel After: {x:${velAfter.x.toFixed(3)}, y:${velAfter.y.toFixed(3)}, z:${velAfter.z.toFixed(3)}}`); // Keep commented unless debugging
+             // logger.log(`[Rapier Sys applyImpulse ${entityId}] Vel Before: {x:${velBefore.x.toFixed(3)}, y:${velBefore.y.toFixed(3)}, z:${velBefore.z.toFixed(3)}}, Impulse Applied: {x:${impulse.x.toFixed(3)}, y:${impulse.y.toFixed(3)}, z:${impulse.z.toFixed(3)}}, Vel After: {x:${velAfter.x.toFixed(3)}, y:${velAfter.y.toFixed(3)}, z:${velAfter.z.toFixed(3)}}`); // Keep commented unless debugging
             return true;
-        } catch (e) { console.error(`[Rapier Sys applyImpulse ${entityId}] Error applying impulse:`, e); return false; }
+        } catch (e) { logger.error(`[Rapier Sys applyImpulse ${entityId}] Error applying impulse:`, e); return false; }
     }
 
     applyTorqueImpulse(entityId, torqueImpulse, wakeUp = true) {
         // ... (implementation unchanged) ...
-        if (!this.world) return false; const handle = this.entityBodyMap.get(entityId); if (handle === undefined) return false; const body = this.world.getRigidBody(handle); if (!body || !body.isDynamic()) { if(body) console.warn(`RapierPhysicsSystem: Cannot apply torque impulse to non-dynamic body for entity ${entityId}.`); return false; }
-        try { body.applyTorqueImpulse(torqueImpulse, wakeUp); return true; } catch (e) { console.error(`RapierPhysicsSystem: Error applying torque impulse for entity ${entityId}:`, e); return false; }
+        if (!this.world) return false; const handle = this.entityBodyMap.get(entityId); if (handle === undefined) return false; const body = this.world.getRigidBody(handle); if (!body || !body.isDynamic()) { if(body) logger.warn(`RapierPhysicsSystem: Cannot apply torque impulse to non-dynamic body for entity ${entityId}.`); return false; }
+        try { body.applyTorqueImpulse(torqueImpulse, wakeUp); return true; } catch (e) { logger.error(`RapierPhysicsSystem: Error applying torque impulse for entity ${entityId}:`, e); return false; }
     }
 
     getCollidingEntities(entityId) {
         // ... (implementation unchanged) ...
         const collidingEntities = []; if (!this.world) return collidingEntities; const colliderHandle = this.entityColliderMap.get(entityId); if (colliderHandle === undefined) { return collidingEntities; }
         try { this.world.intersectionsWith(colliderHandle, (otherCollider) => { const otherEntityId = this.colliderEntityMap.get(otherCollider.handle); if (otherEntityId !== undefined && otherEntityId !== entityId) { collidingEntities.push(otherEntityId); } return true; }); }
-        catch (e) { console.error(`RapierPhysicsSystem: Error checking intersections for entity ${entityId}:`, e); } return collidingEntities;
+        catch (e) { logger.error(`RapierPhysicsSystem: Error checking intersections for entity ${entityId}:`, e); } return collidingEntities;
     }
 
     cleanup() {
         // ... (implementation unchanged) ...
-        console.log("Cleaning up RapierPhysicsSystem...");
+        logger.log("Cleaning up RapierPhysicsSystem...");
         // Remove event listeners
         if (this.engine?.eventEmitter) { const emitter = this.engine.eventEmitter; emitter.off('componentAdded'); emitter.off('componentRemoved'); emitter.off('entityRemoved'); emitter.off('sceneImported'); emitter.off('entityRestored'); /* Remove specific handlers if they were bound */ }
         // Clear physics world resources
@@ -598,7 +599,7 @@ export class RapierPhysicsSystem {
         this.entityBodyMap.clear(); this.entityColliderMap.clear(); this.colliderEntityMap.clear();
         // Note: Rapier world itself doesn't have an explicit 'destroy' or 'free' in JS bindings typically. It relies on JS GC.
         this.world = null; this.RAPIER = null; this.engine = null; this.eventQueue = null; // Nullify references
-        console.log("RapierPhysicsSystem Cleaned Up.");
+        logger.log("RapierPhysicsSystem Cleaned Up.");
     }
 
 } // End Class RapierPhysicsSystem

@@ -1,3 +1,4 @@
+import * as logger from './logger.js';
 // src/utils/event-emitter.js - Simple event emitter implementation
 
 export class EventEmitter {
@@ -113,7 +114,7 @@ export class EventEmitter {
             try {
                 listener(data);
             } catch (error) {
-                console.error(`Error in event listener for ${event}:`, error);
+                logger.error(`Error in event listener for ${event}:`, error);
             }
         }
     }

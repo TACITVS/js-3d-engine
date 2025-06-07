@@ -1,3 +1,4 @@
+import * as logger from '../utils/logger.js';
 // src/ecs/component.js
 // @version 1.2.2 - Improved serialize() base method error message.
 // @previous 1.2.1 - Enhanced JSDoc comments for clarity and standards.
@@ -45,7 +46,7 @@ export class Component {
      */
     onAdd(entityId) {
         // Default implementation does nothing. Subclasses can override this.
-        // console.log(`Component ${this.constructor.name} added to entity ${entityId}`);
+        // logger.log(`Component ${this.constructor.name} added to entity ${entityId}`);
     }
 
     /**
@@ -62,7 +63,7 @@ export class Component {
      */
     onRemove() {
         // Default implementation does nothing. Subclasses can override this.
-        // console.log(`Component ${this.constructor.name} removed from entity`);
+        // logger.log(`Component ${this.constructor.name} removed from entity`);
     }
 
 		/**
@@ -79,7 +80,7 @@ export class Component {
      */
     onUpdate(updateData) {
         // Default implementation does nothing. Subclasses can override this.
-        // console.log(`Component ${this.constructor.name} updated with data:`, updateData);
+        // logger.log(`Component ${this.constructor.name} updated with data:`, updateData);
 		}
 
     /**
@@ -101,7 +102,7 @@ export class Component {
         // --- MODIFIED ERROR MESSAGE ---
         // This base implementation should NOT be used directly.
         // It logs an error to alert developers they forgot to override it.
-        console.error(
+        logger.error(
             `🔴 SERIALIZATION ERROR: Component class "${this.constructor.name}" MUST override the 'serialize()' method. ` +
             `Falling back to an empty object, but this component's state will NOT be saved correctly. ` +
             `Please implement 'serialize()' in ${this.constructor.name}.js`

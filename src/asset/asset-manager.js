@@ -2,6 +2,7 @@
 // @version 1.6.0 - Added listLoadedAssets(), improved error handling context, refined unload.
 // @previous 1.5.0 - Made base asset path configurable via constructor options.
 
+import * as logger from '../utils/logger.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { engineConfig } from '../engine-config.js'; // Import engine config for default path
@@ -41,7 +42,7 @@ export class AssetManager {
         // Ensure base path format consistency (leading/trailing slashes)
         if (!this.baseAssetPath.startsWith('/')) { this.baseAssetPath = '/' + this.baseAssetPath; }
         if (!this.baseAssetPath.endsWith('/')) { this.baseAssetPath = this.baseAssetPath + '/'; }
-        console.log(`[AssetManager] Initialized with base path: ${this.baseAssetPath}`);
+        logger.log(`[AssetManager] Initialized with base path: ${this.baseAssetPath}`);
 
         // Initialize loaders
         /** @private */
@@ -88,7 +89,7 @@ export class AssetManager {
         // Construct full path using the configurable base path
         const fullPath = this.baseAssetPath + cleanedRelativePath;
 
-        console.log(`[AssetManager] Loading asset: '${cleanedRelativePath}' (Full path: '${fullPath}')`);
+        logger.log(`[AssetManager] Loading asset: '${cleanedRelativePath}' (Full path: '${fullPath}')`);
         this.eventEmitter.emit('assetLoadStart', { path: cleanedRelativePath });
 
         const extension = cleanedRelativePath.split('.').pop()?.toLowerCase();
@@ -153,7 +154,7 @@ export class AssetManager {
                  break;
 
             default:
-                console.warn(`[AssetManager] Unsupported file extension '.${extension}' for path: ${cleanedRelativePath}.`);
+                logger.warn(`[AssetManager] Unsupported file extension '.${extension}' for path: ${cleanedRelativePath}.`);
                 const unsupportedError = new Error(`Unsupported file type: ${extension}`);
                 this.eventEmitter.emit('assetLoadError', { path: cleanedRelativePath, error: unsupportedError.message });
                 loadPromise = Promise.reject(unsupportedError);
@@ -165,7 +166,7 @@ export class AssetManager {
              this.loadingPromises.set(cleanedRelativePath, loadPromise);
 
              loadPromise.then(assetData => {
-                 console.log(`[AssetManager] Successfully loaded: ${cleanedRelativePath}`);
+                 logger.log(`[AssetManager] Successfully loaded: ${cleanedRelativePath}`);
                  this.assets.set(cleanedRelativePath, assetData); // Cache using cleaned relative path
                  this.eventEmitter.emit('assetLoadComplete', { path: cleanedRelativePath, asset: assetData });
              }).catch(error => {
@@ -225,7 +226,7 @@ export class AssetManager {
 
         if (this.assets.has(cleanedRelativePath)) {
             const asset = this.assets.get(cleanedRelativePath);
-            console.log(`[AssetManager] Unloading asset '${cleanedRelativePath}'...`);
+            logger.log(`[AssetManager] Unloading asset '${cleanedRelativePath}'...`);
 
             // --- Refined Disposal Logic ---
             try {
@@ -233,9 +234,9 @@ export class AssetManager {
                     // Check if dispose method exists (standard for Texture)
                     if (typeof asset.dispose === 'function') {
                          asset.dispose();
-                         console.log(` - Disposed THREE.Texture.`);
+                         logger.log(` - Disposed THREE.Texture.`);
                     } else {
-                         console.warn(` - Asset '${cleanedRelativePath}' is Texture but missing dispose() method?`);
+                         logger.warn(` - Asset '${cleanedRelativePath}' is Texture but missing dispose() method?`);
                     }
                 } else if (asset?.scene instanceof THREE.Scene) { // Check for GLTF result structure more robustly
                     asset.scene.traverse((object) => {
@@ -255,35 +256,35 @@ export class AssetManager {
                         }
                     });
                     // TODO: Consider disposing animations, skeletons etc. if applicable
-                    console.log(` - Disposed resources within GLTF scene.`);
+                    logger.log(` - Disposed resources within GLTF scene.`);
                 } else if (asset?.isMaterial) { // Check if it's a Material instance
                     this._disposeMaterial(asset);
-                    console.log(` - Disposed THREE.Material.`);
+                    logger.log(` - Disposed THREE.Material.`);
                 } else if (asset?.isBufferGeometry) { // Check if it's a BufferGeometry instance
                      if (typeof asset.dispose === 'function') {
                           asset.dispose();
-                          console.log(` - Disposed THREE.BufferGeometry.`);
+                          logger.log(` - Disposed THREE.BufferGeometry.`);
                      } else {
-                          console.warn(` - Asset '${cleanedRelativePath}' is BufferGeometry but missing dispose() method?`);
+                          logger.warn(` - Asset '${cleanedRelativePath}' is BufferGeometry but missing dispose() method?`);
                      }
                 } else if (asset instanceof AudioBuffer) {
-                     console.log(` - Asset '${cleanedRelativePath}' is an AudioBuffer (no standard dispose method).`);
+                     logger.log(` - Asset '${cleanedRelativePath}' is an AudioBuffer (no standard dispose method).`);
                      // AudioBuffers are typically managed by the AudioContext.
                 } else if (typeof asset?.dispose === 'function') {
                      // Catch-all for other disposable Three.js objects
                      asset.dispose();
-                     console.log(` - Disposed unknown asset type with dispose() method.`);
+                     logger.log(` - Disposed unknown asset type with dispose() method.`);
                 } else {
-                     console.log(` - Asset '${cleanedRelativePath}' type does not require standard disposal (e.g., JSON).`);
+                     logger.log(` - Asset '${cleanedRelativePath}' type does not require standard disposal (e.g., JSON).`);
                 }
             } catch (e) {
                 // Catch errors specifically during the disposal process
-                console.error(`[AssetManager] Error during disposal of asset '${cleanedRelativePath}':`, e);
+                logger.error(`[AssetManager] Error during disposal of asset '${cleanedRelativePath}':`, e);
             }
             // --- End Refined Disposal Logic ---
 
             const deleted = this.assets.delete(cleanedRelativePath);
-            if(deleted) console.log(`[AssetManager] Asset '${cleanedRelativePath}' removed from cache.`);
+            if(deleted) logger.log(`[AssetManager] Asset '${cleanedRelativePath}' removed from cache.`);
             return deleted;
         }
         return false;
@@ -308,13 +309,13 @@ export class AssetManager {
               material.dispose();
               material.userData.disposed = true; // Mark as disposed
          } else {
-              console.warn(` - Material type ${material.type} lacks a dispose() method.`);
+              logger.warn(` - Material type ${material.type} lacks a dispose() method.`);
          }
     }
 
     /** Clears the entire asset cache. */
     clear() {
-        console.log("[AssetManager] Clearing asset cache...");
+        logger.log("[AssetManager] Clearing asset cache...");
         // Cancel any ongoing loads? Difficult without AbortController integration in loaders.
         this.loadingPromises.clear(); // Clear pending promises map
 
@@ -323,11 +324,11 @@ export class AssetManager {
 
         // Final check and clear just in case unload missed something
         if (this.assets.size > 0) {
-             console.warn(`[AssetManager] Cache clear might be incomplete (${this.assets.size} items remain). Forcibly clearing.`);
+             logger.warn(`[AssetManager] Cache clear might be incomplete (${this.assets.size} items remain). Forcibly clearing.`);
              // We don't iterate and dispose again here, as `unload` should have handled it.
              // If items remain, it might indicate an issue in `unload` or disposal logic.
              this.assets.clear();
         }
-        console.log("[AssetManager] Asset cache cleared.");
+        logger.log("[AssetManager] Asset cache cleared.");
     }
 }

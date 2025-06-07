@@ -1,3 +1,4 @@
+import * as logger from '../utils/logger.js';
 // src/ecs/prefab-manager.js
 // @version 1.1.0 - Added listPrefabs method
 
@@ -43,7 +44,7 @@ export class PrefabManager {
             throw new Error(`Entity ${entityId} not found, cannot save as prefab.`);
         }
 
-        console.log(`[PrefabManager] Saving entity ${entityId} as prefab "${prefabName}"...`);
+        logger.log(`[PrefabManager] Saving entity ${entityId} as prefab "${prefabName}"...`);
         try {
             const entityState = this.entityManager.getEntityState(entityId);
             if (!entityState) {
@@ -58,10 +59,10 @@ export class PrefabManager {
 
             const key = this.localStoragePrefix + prefabName.trim();
             localStorage.setItem(key, JSON.stringify(prefabData));
-            console.log(`[PrefabManager] Prefab "${prefabName}" saved.`);
+            logger.log(`[PrefabManager] Prefab "${prefabName}" saved.`);
             return true;
         } catch (error) {
-            console.error(`[PrefabManager] Error saving prefab "${prefabName}" for entity ${entityId}:`, error);
+            logger.error(`[PrefabManager] Error saving prefab "${prefabName}" for entity ${entityId}:`, error);
             return false;
         }
     }
@@ -74,7 +75,7 @@ export class PrefabManager {
      */
     createEntityFromPrefab(prefabName) {
         if (!prefabName || typeof prefabName !== 'string' || prefabName.trim() === '') {
-            console.error("[PrefabManager] Prefab name cannot be empty for instantiation.");
+            logger.error("[PrefabManager] Prefab name cannot be empty for instantiation.");
             return null;
         }
 
@@ -82,11 +83,11 @@ export class PrefabManager {
         const storedData = localStorage.getItem(key);
 
         if (!storedData) {
-            console.error(`[PrefabManager] Prefab "${prefabName}" not found in localStorage.`);
+            logger.error(`[PrefabManager] Prefab "${prefabName}" not found in localStorage.`);
             return null;
         }
 
-        console.log(`[PrefabManager] Instantiating prefab "${prefabName}"...`);
+        logger.log(`[PrefabManager] Instantiating prefab "${prefabName}"...`);
         try {
             const prefabData = JSON.parse(storedData);
             if (!prefabData || typeof prefabData.components !== 'object') {
@@ -99,7 +100,7 @@ export class PrefabManager {
                  throw new Error("EntityManager failed to create a new entity ID.");
             }
 
-            console.log(`[PrefabManager] Created new entity ${newEntityId} for prefab "${prefabName}". Restoring components...`);
+            logger.log(`[PrefabManager] Created new entity ${newEntityId} for prefab "${prefabName}". Restoring components...`);
 
             // Add components from the prefab data to the new entity
             let success = true;
@@ -114,7 +115,7 @@ export class PrefabManager {
                  }
 
                  if (!this.entityManager.addComponent(newEntityId, componentType, dataToRestore)) {
-                     console.error(`[PrefabManager] Failed to add component '${componentType}' to entity ${newEntityId} from prefab "${prefabName}".`);
+                     logger.error(`[PrefabManager] Failed to add component '${componentType}' to entity ${newEntityId} from prefab "${prefabName}".`);
                      success = false;
                      // Decide whether to continue adding other components or fail completely
                      // break; // Uncomment to stop on first component failure
@@ -123,7 +124,7 @@ export class PrefabManager {
 
             if (!success) {
                  // Optionally remove the partially created entity if component adding failed critically
-                 console.warn(`[PrefabManager] Entity ${newEntityId} created from prefab "${prefabName}" but component restoration had errors.`);
+                 logger.warn(`[PrefabManager] Entity ${newEntityId} created from prefab "${prefabName}" but component restoration had errors.`);
                  // this.entityManager.removeEntity(newEntityId); // Uncomment to delete on failure
                  // return null;
             }
@@ -133,11 +134,11 @@ export class PrefabManager {
              this.entityManager.eventEmitter?.emit('entityCreated', { id: newEntityId, source: 'prefab', prefabName: prefabName });
 
 
-            console.log(`[PrefabManager] Instantiated prefab "${prefabName}" as entity ${newEntityId}.`);
+            logger.log(`[PrefabManager] Instantiated prefab "${prefabName}" as entity ${newEntityId}.`);
             return newEntityId;
 
         } catch (error) {
-            console.error(`[PrefabManager] Error instantiating prefab "${prefabName}":`, error);
+            logger.error(`[PrefabManager] Error instantiating prefab "${prefabName}":`, error);
             return null;
         }
     }
@@ -169,16 +170,16 @@ export class PrefabManager {
      */
     deletePrefab(prefabName) {
         if (!prefabName || typeof prefabName !== 'string' || prefabName.trim() === '') {
-            console.error("[PrefabManager] Prefab name cannot be empty for deletion.");
+            logger.error("[PrefabManager] Prefab name cannot be empty for deletion.");
             return false;
         }
         const key = this.localStoragePrefix + prefabName.trim();
         if (localStorage.getItem(key) !== null) {
             localStorage.removeItem(key);
-            console.log(`[PrefabManager] Deleted prefab "${prefabName}".`);
+            logger.log(`[PrefabManager] Deleted prefab "${prefabName}".`);
             return true;
         } else {
-            console.warn(`[PrefabManager] Prefab "${prefabName}" not found for deletion.`);
+            logger.warn(`[PrefabManager] Prefab "${prefabName}" not found for deletion.`);
             return false;
         }
     }

@@ -3,6 +3,7 @@
 
 // Import base class for type hinting in JSDoc.
 // Ensures that registered components ideally inherit from Component.
+import * as logger from '../utils/logger.js';
 import { Component } from './component.js';
 
 /**
@@ -55,22 +56,22 @@ export class ComponentRegistry {
      */
     register(name, componentConstructor) {
         if (this.componentTypes.has(name)) {
-            console.warn(`[ComponentRegistry] Warning: Component type "${name}" is already registered. Overwriting.`);
+            logger.warn(`[ComponentRegistry] Warning: Component type "${name}" is already registered. Overwriting.`);
         }
 
         // Basic validation: Check if it's a function.
         if (typeof componentConstructor !== 'function') {
-             console.error(`[ComponentRegistry] Error: Attempted to register non-function for component type "${name}". Registration skipped.`);
+             logger.error(`[ComponentRegistry] Error: Attempted to register non-function for component type "${name}". Registration skipped.`);
              return this; // Do not register invalid constructors
         }
 
         // Check if prototype exists (basic check for class-like structure)
         if (!componentConstructor.prototype) {
-             console.warn(`[ComponentRegistry] Warning: Registering component type "${name}" which might not be a standard class (missing prototype).`);
+             logger.warn(`[ComponentRegistry] Warning: Registering component type "${name}" which might not be a standard class (missing prototype).`);
         }
 
         this.componentTypes.set(name, componentConstructor);
-        // console.log(`[ComponentRegistry] Registered component type: "${name}"`); // Optional log
+        // logger.log(`[ComponentRegistry] Registered component type: "${name}"`); // Optional log
         return this;
     }
 
@@ -86,7 +87,7 @@ export class ComponentRegistry {
      */
     unregister(name) {
         const deleted = this.componentTypes.delete(name);
-        // if (deleted) { console.log(`[ComponentRegistry] Unregistered component type: "${name}"`); } // Optional log
+        // if (deleted) { logger.log(`[ComponentRegistry] Unregistered component type: "${name}"`); } // Optional log
         return this;
     }
 

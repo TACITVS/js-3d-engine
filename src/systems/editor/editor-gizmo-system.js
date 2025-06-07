@@ -1,6 +1,7 @@
 // src/systems/editor/editor-gizmo-system.js
 // @version 1.1.0 - Added detach logic for TransformControls on deselect/remove
 
+import * as logger from '../../utils/logger.js';
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { UpdateComponentCommand } from '../../editor/command-manager.js'; // Assuming path
@@ -62,7 +63,7 @@ export class EditorGizmoSystem {
         this.renderer = engine.getSystem('renderer'); // Get renderer system
 
         if (!this.renderer || !this.renderer.scene || !this.renderer.renderer) {
-            console.error("EditorGizmoSystem: Renderer system or its scene/renderer not available!");
+            logger.error("EditorGizmoSystem: Renderer system or its scene/renderer not available!");
             return;
         }
         this.domElement = this.renderer.renderer.domElement; // Get canvas
@@ -99,9 +100,9 @@ export class EditorGizmoSystem {
             this.eventEmitter.on('entityRemoved', this._onEntityRemoved);
 
 
-            console.log("EditorGizmoSystem Initialized.");
+            logger.log("EditorGizmoSystem Initialized.");
         } catch (error) {
-            console.error("EditorGizmoSystem: Failed to initialize TransformControls:", error);
+            logger.error("EditorGizmoSystem: Failed to initialize TransformControls:", error);
             if (this.transformControls) { this.renderer.scene.remove(this.transformControls); this.transformControls.dispose(); this.transformControls = null; }
         }
     }
@@ -128,18 +129,18 @@ export class EditorGizmoSystem {
                  // Attach to new object
                 this.transformControls.attach(entry.threeObject);
                 this._attachedEntityId = id; // Track attached entity
-                console.log(`[Gizmo] Attached to entity ${id}`);
+                logger.log(`[Gizmo] Attached to entity ${id}`);
             } else {
                 // Entity exists but has no suitable render object, detach gizmo
                 if (this.transformControls.object) { this.transformControls.detach(); }
                 this._attachedEntityId = null;
-                 console.log(`[Gizmo] Selected entity ${id} has no suitable render object. Detached.`);
+                 logger.log(`[Gizmo] Selected entity ${id} has no suitable render object. Detached.`);
             }
         } else {
             // Deselected or entity doesn't exist, detach gizmo
             if (this.transformControls.object) { this.transformControls.detach(); }
             this._attachedEntityId = null;
-            // console.log("[Gizmo] Detached due to deselection or invalid ID.");
+            // logger.log("[Gizmo] Detached due to deselection or invalid ID.");
         }
     }
 
@@ -152,7 +153,7 @@ export class EditorGizmoSystem {
     _onEntityRemoved({ id }) {
         if (this._attachedEntityId === id) {
              if (this.transformControls && this.transformControls.object) {
-                  console.log(`[Gizmo] Detaching from removed entity ${id}.`);
+                  logger.log(`[Gizmo] Detaching from removed entity ${id}.`);
                   this.transformControls.detach();
              }
              this._attachedEntityId = null;
@@ -222,7 +223,7 @@ export class EditorGizmoSystem {
         // However, if the object's transform is changed EXTERNALLY (e.g., via Inspector),
         // this ensures the gizmo visually updates its position/orientation.
         // No action needed here typically, as the controls update themselves.
-        // console.log("Gizmo changed");
+        // logger.log("Gizmo changed");
     }
 
     /** Update loop - currently does nothing, as TransformControls updates itself via renderer. */
@@ -234,7 +235,7 @@ export class EditorGizmoSystem {
 
     /** Cleans up the gizmo and listeners. */
     cleanup() {
-        console.log("Cleaning up EditorGizmoSystem...");
+        logger.log("Cleaning up EditorGizmoSystem...");
         if (this.eventEmitter) {
             this.eventEmitter.off('entitySelected', this._onEntitySelected);
             this.eventEmitter.off('activeCameraChanged', this.transformControls?.dispose); // Check if needed
@@ -251,6 +252,6 @@ export class EditorGizmoSystem {
         }
         this.transformControls = null; this.camera = null; this.domElement = null;
         this.renderer = null; this.engine = null; this.eventEmitter = null; this.commandManager = null;
-        console.log("EditorGizmoSystem Cleaned Up.");
+        logger.log("EditorGizmoSystem Cleaned Up.");
     }
 }

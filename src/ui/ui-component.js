@@ -1,3 +1,4 @@
+import * as logger from '../utils/logger.js';
 // src/ui/ui-component.js
 // @version 1.1.0 - Added documentation comments guiding towards engine/event-based interaction
 
@@ -67,7 +68,7 @@ export class UIComponent {
             try {
                 container.appendChild(this.element);
             } catch (error) {
-                 console.error(`UIComponent ${this.constructor.name}: Error appending element to container:`, error);
+                 logger.error(`UIComponent ${this.constructor.name}: Error appending element to container:`, error);
                  this.element = null; // Nullify element if append failed
                  return; // Stop initialization
             }
@@ -77,11 +78,11 @@ export class UIComponent {
                 try {
                     this._setupEventListeners();
                 } catch (error) {
-                    console.error(`UIComponent ${this.constructor.name}: Error setting up event listeners:`, error);
+                    logger.error(`UIComponent ${this.constructor.name}: Error setting up event listeners:`, error);
                 }
             }
         } else {
-            console.error(`UIComponent ${this.constructor.name}: _createElement() did not return a valid HTMLElement.`);
+            logger.error(`UIComponent ${this.constructor.name}: _createElement() did not return a valid HTMLElement.`);
             this.element = null; // Ensure element is null if creation failed
         }
     }
@@ -96,7 +97,7 @@ export class UIComponent {
      */
     _createElement() {
         // This method MUST be implemented by subclasses (e.g., Toolbar, Inspector).
-        console.error(`UIComponent ${this.constructor.name}: _createElement() is not implemented.`);
+        logger.error(`UIComponent ${this.constructor.name}: _createElement() is not implemented.`);
         return null;
     }
 
@@ -138,6 +139,6 @@ export class UIComponent {
         }
         this.element = null; // Clear reference
         this.editor = null; // Clear reference to editor
-        // console.log(`UIComponent ${this.constructor.name}: Destroyed.`);
+        // logger.log(`UIComponent ${this.constructor.name}: Destroyed.`);
     }
 }

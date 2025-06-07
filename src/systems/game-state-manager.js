@@ -1,3 +1,4 @@
+import * as logger from '../utils/logger.js';
 // src/systems/game-state-manager.js
 // @version 1.1.0 - Added explicit GameState constants.
 // @previous 1.0.0 - Initial implementation
@@ -49,7 +50,7 @@ export class GameStateManager {
         const initialEngineMode = engine.getMode();
         // Use GameState constants for initial state
         this._currentState = (initialEngineMode === 'game') ? GameState.LOADING : GameState.EDITOR; // Start in LOADING if game mode, EDITOR otherwise
-        console.log(`[GameStateManager] Initialized. Initial state set to: ${this._currentState}`);
+        logger.log(`[GameStateManager] Initialized. Initial state set to: ${this._currentState}`);
         // Emit initial state using constants
         this.eventEmitter?.emit('gameStateChanged', { previous: GameState.INITIALIZING, current: this._currentState });
     }
@@ -72,11 +73,11 @@ export class GameStateManager {
     setState(newState, eventData = {}) {
         // Validate newState against defined states
         if (typeof newState !== 'string' || !Object.values(GameState).includes(newState)) {
-            console.warn(`[GameStateManager] Attempted to set invalid state: '${newState}'. Valid states are:`, Object.values(GameState));
+            logger.warn(`[GameStateManager] Attempted to set invalid state: '${newState}'. Valid states are:`, Object.values(GameState));
             // Option 1: Prevent setting invalid state
              return false;
             // Option 2: Allow setting any string but log warning (less safe)
-            // console.warn(`[GameStateManager] Setting potentially invalid state: '${newState}'`);
+            // logger.warn(`[GameStateManager] Setting potentially invalid state: '${newState}'`);
         }
 
         const previousState = this._currentState;
@@ -85,7 +86,7 @@ export class GameStateManager {
         }
 
         this._currentState = newState;
-        console.log(`[GameStateManager] State changed from '${previousState}' to '${newState}'`);
+        logger.log(`[GameStateManager] State changed from '${previousState}' to '${newState}'`);
 
         // Emit using constants
         this.eventEmitter?.emit('gameStateChanged', {
@@ -102,7 +103,7 @@ export class GameStateManager {
     }
 
     cleanup() {
-        console.log("[GameStateManager] Cleaning up.");
+        logger.log("[GameStateManager] Cleaning up.");
         this._currentState = GameState.CLEANED_UP; // Use constant
         this.eventEmitter = null;
     }

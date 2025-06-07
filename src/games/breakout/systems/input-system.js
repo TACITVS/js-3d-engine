@@ -3,6 +3,7 @@
 // @version 1.3.0 - Updated to use InputManagerSystem instead of direct window listeners.
 // @previous 1.2.0 - Updated to use breakout-config.js
 
+import * as logger from '../../../utils/logger.js';
 import { breakoutConfig } from './breakout-config.js';
 
 // Use game-specific config
@@ -50,7 +51,7 @@ export class InputSystem {
         // --- ADDED: Get InputManagerSystem ---
         this.inputManager = engine.getSystem('inputManager');
         if (!this.inputManager) {
-            console.error("[Breakout InputSystem] CRITICAL: InputManagerSystem ('inputManager') not found!");
+            logger.error("[Breakout InputSystem] CRITICAL: InputManagerSystem ('inputManager') not found!");
             this.active = false; // Cannot function without input manager
             return;
         }
@@ -68,7 +69,7 @@ export class InputSystem {
         // --- END REMOVAL ---
         this._initialized = true; // Mark as initialized (refs set)
 
-        console.log(`[Breakout] InputSystem Initialized (Paddle ID: ${this.paddleEntityId}) - Using InputManagerSystem.`);
+        logger.log(`[Breakout] InputSystem Initialized (Paddle ID: ${this.paddleEntityId}) - Using InputManagerSystem.`);
     }
 
     /** Lazily gets and stores the physics system reference */
@@ -77,7 +78,7 @@ export class InputSystem {
             this.physicsSystem = this.engine.getSystem('physics');
             this._physicsSystemSearched = true;
             if (!this.physicsSystem) {
-                console.warn("[Breakout] InputSystem: Physics system ('physics') still not found during update.");
+                logger.warn("[Breakout] InputSystem: Physics system ('physics') still not found during update.");
             }
         }
         return this.physicsSystem;
@@ -99,13 +100,13 @@ export class InputSystem {
                       this.paddleSpeed = paddleComp?.speed ?? PADDLE_DEFAULT_SPEED;
                       break;
                  } else {
-                      console.warn(`[Breakout] InputSystem: Found entity ${entityId} with 'playerPaddle' tag but missing PaddleComponent.`);
+                      logger.warn(`[Breakout] InputSystem: Found entity ${entityId} with 'playerPaddle' tag but missing PaddleComponent.`);
                  }
              }
          }
          this.paddleEntityId = foundPaddleId;
          if (this.paddleEntityId !== null) {
-            console.log(`[Breakout] InputSystem: Found Paddle by tag (ID: ${this.paddleEntityId}) with speed ${this.paddleSpeed} (Default: ${PADDLE_DEFAULT_SPEED})`);
+            logger.log(`[Breakout] InputSystem: Found Paddle by tag (ID: ${this.paddleEntityId}) with speed ${this.paddleSpeed} (Default: ${PADDLE_DEFAULT_SPEED})`);
         }
     }
 
@@ -125,7 +126,7 @@ export class InputSystem {
         if (this.paddleEntityId === null) { return; }
 
         if (!this.entityManager.hasEntity(this.paddleEntityId)) {
-             console.warn(`[Breakout] InputSystem: Paddle entity ${this.paddleEntityId} no longer exists.`);
+             logger.warn(`[Breakout] InputSystem: Paddle entity ${this.paddleEntityId} no longer exists.`);
              this.paddleEntityId = null; return;
         }
         const physicsComp = this.entityManager.getComponent(this.paddleEntityId, 'physics');
@@ -166,7 +167,7 @@ export class InputSystem {
         }
 
         // Fallback: If no physics or body isn't kinematic
-        console.warn(`[Breakout] InputSystem: Updating paddle ${this.paddleEntityId} transform directly (fallback).`);
+        logger.warn(`[Breakout] InputSystem: Updating paddle ${this.paddleEntityId} transform directly (fallback).`);
         let deltaX = 0;
         // Use queried input state
         if (moveLeft) deltaX -= this.paddleSpeed * time.deltaTime;
@@ -200,6 +201,6 @@ export class InputSystem {
         this.inputManager = null; // Clear input manager reference
         this._physicsSystemSearched = false;
         this._initialized = false; // Mark as uninitialized
-        console.log("[Breakout] InputSystem Cleaned Up");
+        logger.log("[Breakout] InputSystem Cleaned Up");
     }
 }

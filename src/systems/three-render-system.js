@@ -2,6 +2,7 @@
 // @version 1.5.4 - Added creation-in-progress tracking to fix potential race conditions in _syncEntity.
 // @previous 1.5.3 - Added robustness checks (dependencies, data validation, try/catch).
 
+import * as logger from '../utils/logger.js';
 import * as THREE from 'three';
 import { OrbitControls }         from 'three/addons/controls/OrbitControls.js';
 import { engineConfig }          from '../engine-config.js';
@@ -55,18 +56,18 @@ export class ThreeRenderSystem {
     // initialize, isVisible, show, hide, update, _setupEventHandlers, _handleWindowClickCapture, _subscribeToECSEvents, _onResize, _onClick, _fullSceneSync
     // (These methods remain unchanged from the previous version 1.5.3)
     async initialize(entityManager, eventEmitter, engine) {
-        console.log('[ThreeRenderSystem] Initializing...');
+        logger.log('[ThreeRenderSystem] Initializing...');
         // --- MODIFICATION: Added dependency checks ---
-        if (!entityManager) { console.error("ThreeRenderSystem: EntityManager dependency missing!"); this.active = false; return this; }
-        if (!eventEmitter) { console.error("ThreeRenderSystem: EventEmitter dependency missing!"); this.active = false; return this; }
-        if (!engine) { console.error("ThreeRenderSystem: Engine dependency missing!"); this.active = false; return this; }
+        if (!entityManager) { logger.error("ThreeRenderSystem: EntityManager dependency missing!"); this.active = false; return this; }
+        if (!eventEmitter) { logger.error("ThreeRenderSystem: EventEmitter dependency missing!"); this.active = false; return this; }
+        if (!engine) { logger.error("ThreeRenderSystem: Engine dependency missing!"); this.active = false; return this; }
         if (typeof engine.getAssetManager !== 'function' || !engine.getAssetManager()) {
-            console.error("ThreeRenderSystem: AssetManager missing or invalid!");
+            logger.error("ThreeRenderSystem: AssetManager missing or invalid!");
             this.active = false; return this;
         }
         this.container = document.getElementById('editor-container');
         if (!this.container) {
-            console.error("ThreeRenderSystem: Container 'editor-container' not found!");
+            logger.error("ThreeRenderSystem: Container 'editor-container' not found!");
             this.active = false; return this;
         }
         // --- END MODIFICATION ---
@@ -108,10 +109,10 @@ export class ThreeRenderSystem {
             this._subscribeToECSEvents(); // Setup ECS listeners
             this._fullSceneSync(); // Initial sync of entities
 
-            console.log('[ThreeRenderSystem] Initialization Complete.');
+            logger.log('[ThreeRenderSystem] Initialization Complete.');
             return this;
         } catch (err) {
-            console.error('[ThreeRenderSystem] Initialization failed:', err);
+            logger.error('[ThreeRenderSystem] Initialization failed:', err);
             this.active = false;
             // Attempt cleanup of partially created resources
             if (this.renderer && this.renderer.domElement.parentNode) {
@@ -137,14 +138,14 @@ export class ThreeRenderSystem {
     }
 
     get isVisible() { return this.#visible; }
-    show() { if (this.renderer) { this.#visible = true; this.renderer.domElement.style.display = 'block'; console.log('[ThreeRenderSystem] Shown.'); this._onResize( this.container?.clientWidth ?? 1, this.container?.clientHeight ?? 1 ); } }
-    hide() { if (this.renderer) { this.#visible = false; this.renderer.domElement.style.display = 'none'; console.log('[ThreeRenderSystem] Hidden.'); } }
+    show() { if (this.renderer) { this.#visible = true; this.renderer.domElement.style.display = 'block'; logger.log('[ThreeRenderSystem] Shown.'); this._onResize( this.container?.clientWidth ?? 1, this.container?.clientHeight ?? 1 ); } }
+    hide() { if (this.renderer) { this.#visible = false; this.renderer.domElement.style.display = 'none'; logger.log('[ThreeRenderSystem] Hidden.'); } }
 
     update(time) {
          // --- MODIFICATION: Added checks ---
         if (!this.active || !this.#visible || !this.renderer || !this.scene || !this.activeCameraObject || !this.container) {
              // Log if something essential is missing, otherwise just return
-             if (!this.activeCameraObject && this.#visible) console.warn("ThreeRenderSystem Update: No active camera!");
+             if (!this.activeCameraObject && this.#visible) logger.warn("ThreeRenderSystem Update: No active camera!");
              return;
         }
         // --- END MODIFICATION ---
@@ -159,7 +160,7 @@ export class ThreeRenderSystem {
 
         // --- MODIFICATION: Check if orbitControls exists ---
         if (this.orbitControls) {
-             try { this.orbitControls.update(); } catch (e) { console.error("Error updating OrbitControls:", e); }
+             try { this.orbitControls.update(); } catch (e) { logger.error("Error updating OrbitControls:", e); }
         }
         // --- END MODIFICATION ---
 
@@ -167,7 +168,7 @@ export class ThreeRenderSystem {
         try {
             this.renderer.render(this.scene, this.activeCameraObject);
         } catch(renderError) {
-             console.error("ThreeRenderSystem: Error during render call:", renderError);
+             logger.error("ThreeRenderSystem: Error during render call:", renderError);
              this.active = false; // Disable system on render error
         }
         // --- END MODIFICATION ---
@@ -194,32 +195,32 @@ export class ThreeRenderSystem {
         this._boundOnClick = this._onClick.bind(this);
         if (this.renderer?.domElement) {
             this.renderer.domElement.addEventListener('click', this._boundOnClick);
-            console.log("[TRS] Setup event handlers: Attached _onClick listener to renderer canvas.");
+            logger.log("[TRS] Setup event handlers: Attached _onClick listener to renderer canvas.");
         } else {
-            console.error("[TRS] Setup event handlers: Renderer canvas not found, cannot attach click listener!");
+            logger.error("[TRS] Setup event handlers: Renderer canvas not found, cannot attach click listener!");
         }
 
         // Optional: Window click capture for debugging UI interactions
         this._boundWindowClickCapture = this._handleWindowClickCapture.bind(this);
         window.addEventListener('click', this._boundWindowClickCapture, true);
-        console.log("[TRS] Setup event handlers: Attached window click capture listener.");
+        logger.log("[TRS] Setup event handlers: Attached window click capture listener.");
     }
 
-    _handleWindowClickCapture(event) { /* console.log("[WINDOW CLICK CAPTURE] Target:", event.target); */ } // Keep concise
+    _handleWindowClickCapture(event) { /* logger.log("[WINDOW CLICK CAPTURE] Target:", event.target); */ } // Keep concise
 
     _subscribeToECSEvents() {
-        if (!this.eventEmitter) { console.error("TRS: Cannot subscribe to ECS events, eventEmitter missing."); return; }
-        console.log("[TRS] Subscribing to ECS events...");
+        if (!this.eventEmitter) { logger.error("TRS: Cannot subscribe to ECS events, eventEmitter missing."); return; }
+        logger.log("[TRS] Subscribing to ECS events...");
         this.eventEmitter.on('entityCreated', ({ id }) => this._syncEntity(id));
         this.eventEmitter.on('componentAdded', ({ entityId, componentType }) => {
             if (['renderable', 'light', 'camera', 'transform'].includes(componentType)) {
-                // console.log(`[TRS] Event: componentAdded (${componentType}) for entity ${entityId}. Syncing.`);
+                // logger.log(`[TRS] Event: componentAdded (${componentType}) for entity ${entityId}. Syncing.`);
                 this._syncEntity(entityId);
             }
         });
         this.eventEmitter.on('componentRemoved', ({ entityId, componentType }) => {
             if (['renderable', 'light', 'camera', 'transform'].includes(componentType)) {
-                // console.log(`[TRS] Event: componentRemoved (${componentType}) for entity ${entityId}. Removing object.`);
+                // logger.log(`[TRS] Event: componentRemoved (${componentType}) for entity ${entityId}. Removing object.`);
                 this._remove(entityId);
             }
             // If transform removed, remove renderable/light/camera as well
@@ -231,20 +232,20 @@ export class ThreeRenderSystem {
                 return;
             }
             if (['renderable', 'light', 'camera', 'transform'].includes(componentType)) {
-                // console.log(`[TRS] Event: entityUpdated (${componentType}) for entity ${id} from source '${source || 'unknown'}'. Syncing.`);
+                // logger.log(`[TRS] Event: entityUpdated (${componentType}) for entity ${id} from source '${source || 'unknown'}'. Syncing.`);
                 this._syncEntity(id);
             }
         });
         this.eventEmitter.on('entityRemoved', ({ id }) => {
-             // console.log(`[TRS] Event: entityRemoved, ID: ${id}. Removing object.`);
+             // logger.log(`[TRS] Event: entityRemoved, ID: ${id}. Removing object.`);
              this._remove(id);
         });
         this.eventEmitter.on('sceneImported', () => {
-             console.log(`[TRS] Event: sceneImported. Performing full sync.`);
+             logger.log(`[TRS] Event: sceneImported. Performing full sync.`);
              this._fullSceneSync();
         });
         this.eventEmitter.on('entityRestored', ({ id }) => {
-             // console.log(`[TRS] Event: entityRestored, ID: ${id}. Syncing.`);
+             // logger.log(`[TRS] Event: entityRestored, ID: ${id}. Syncing.`);
              this._syncEntity(id);
         });
     }
@@ -270,14 +271,14 @@ export class ThreeRenderSystem {
             }
             this.activeCameraObject.updateProjectionMatrix();
         } catch (e) {
-             console.error("ThreeRenderSystem: Error during resize:", e);
+             logger.error("ThreeRenderSystem: Error during resize:", e);
         }
     }
 
     _onClick(event) {
         // --- MODIFICATION: Added checks ---
         if (!this.#visible || this.engine?.getMode() !== 'editor' || !this.activeCameraObject || !this.raycaster || !this.mouse || !this.renderer || !this.renderer.domElement) {
-            // console.log("[TRS] _onClick: Aborted (hidden, not editor, or missing refs).");
+            // logger.log("[TRS] _onClick: Aborted (hidden, not editor, or missing refs).");
             return;
         }
         // --- END MODIFICATION ---
@@ -285,14 +286,14 @@ export class ThreeRenderSystem {
         try {
             const rect = this.renderer.domElement.getBoundingClientRect();
             if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
-                // console.log("[TRS] _onClick: Click outside canvas bounds.");
+                // logger.log("[TRS] _onClick: Click outside canvas bounds.");
                 return;
             }
 
             // Calculate mouse position in normalized device coordinates (-1 to +1)
             this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            // console.log(`[TRS] _onClick: Mouse coords (NDC): ${this.mouse.x.toFixed(2)}, ${this.mouse.y.toFixed(2)}`);
+            // logger.log(`[TRS] _onClick: Mouse coords (NDC): ${this.mouse.x.toFixed(2)}, ${this.mouse.y.toFixed(2)}`);
 
             this.raycaster.setFromCamera(this.mouse, this.activeCameraObject);
 
@@ -300,11 +301,11 @@ export class ThreeRenderSystem {
                 .filter(entry => (entry.type === 'mesh' || entry.type === 'model') && entry.threeObject?.isObject3D)
                 .map(entry => entry.threeObject);
 
-            // console.log(`[TRS] _onClick: Raycasting against ${targets.length} targets.`);
+            // logger.log(`[TRS] _onClick: Raycasting against ${targets.length} targets.`);
             let selectedId = null;
             if (targets.length > 0) {
                 const intersects = this.raycaster.intersectObjects(targets, true); // true for recursive
-                // console.log(`[TRS] _onClick: Found ${intersects.length} intersections.`);
+                // logger.log(`[TRS] _onClick: Found ${intersects.length} intersections.`);
                 if (intersects.length > 0) {
                     // Find the closest intersected object with a valid entity ID in its userData
                     for (const intersect of intersects) {
@@ -315,10 +316,10 @@ export class ThreeRenderSystem {
                                 // --- MODIFICATION: Check if entity actually exists ---
                                 if (this.entityManager?.hasEntity(obj.userData.entityId)) {
                                     selectedId = obj.userData.entityId;
-                                    // console.log(`[TRS] _onClick: Found matching entity ID ${selectedId} traversing up.`);
+                                    // logger.log(`[TRS] _onClick: Found matching entity ID ${selectedId} traversing up.`);
                                     break; // Found the entity, stop searching this intersection
                                 } else {
-                                    console.warn(`[TRS] _onClick: Intersected object has entityId ${obj.userData.entityId}, but entity no longer exists.`);
+                                    logger.warn(`[TRS] _onClick: Intersected object has entityId ${obj.userData.entityId}, but entity no longer exists.`);
                                 }
                                 // --- END MODIFICATION ---
                             }
@@ -328,15 +329,15 @@ export class ThreeRenderSystem {
                     }
                 }
             }
-            // console.log(`[TRS] _onClick: Raycast determined selection should be ID: ${selectedId}. Calling engine.selectEntity.`);
+            // logger.log(`[TRS] _onClick: Raycast determined selection should be ID: ${selectedId}. Calling engine.selectEntity.`);
             this.engine.selectEntity(selectedId); // selectEntity handles null correctly
         } catch (e) {
-            console.error("ThreeRenderSystem: Error during click handling/raycasting:", e);
+            logger.error("ThreeRenderSystem: Error during click handling/raycasting:", e);
         }
     }
 
     _fullSceneSync() {
-        console.log("[TRS] Performing full scene sync...");
+        logger.log("[TRS] Performing full scene sync...");
         // --- MODIFICATION: Wrap in try/catch ---
         try {
             // Dispose existing objects
@@ -355,12 +356,12 @@ export class ThreeRenderSystem {
             if (this.entityManager) {
                 this.entityManager.entities.forEach(id => this._syncEntity(id));
             } else {
-                 console.warn("[TRS Full Sync] EntityManager not available.");
+                 logger.warn("[TRS Full Sync] EntityManager not available.");
             }
 
             // Activate a camera if none was activated during sync
             if (!this.activeCameraObject && this.engine) {
-                console.warn("[TRS Full Sync] No active camera found after sync. Activating first camera or default.");
+                logger.warn("[TRS Full Sync] No active camera found after sync. Activating first camera or default.");
                 const cameraEntities = this.entityManager?.getEntitiesWithComponent('camera') || [];
                 let activated = false;
                 if (cameraEntities.length > 0) {
@@ -371,28 +372,28 @@ export class ThreeRenderSystem {
                         // Ensure component marks it active if not already
                         const camComp = this.entityManager.getComponent(firstCamId, 'camera');
                         if (camComp && !camComp.isActive) {
-                             console.log(`[TRS Full Sync] Setting camera ${firstCamId} to active via component update.`);
+                             logger.log(`[TRS Full Sync] Setting camera ${firstCamId} to active via component update.`);
                              this.engine.addComponent(firstCamId, 'camera', { isActive: true });
                              // _activateCamera will be called by the resulting _syncEntity event
                              activated = true;
                         } else if (camComp && camComp.isActive) {
-                             console.log(`[TRS Full Sync] Activating existing camera ${firstCamId} directly.`);
+                             logger.log(`[TRS Full Sync] Activating existing camera ${firstCamId} directly.`);
                             this._activateCamera(firstCamId, entry.threeObject); // Activate manually if component already says active
                             activated = true;
                         }
                     } else {
-                        console.warn(`[TRS Full Sync] Could not activate first camera ${firstCamId} immediately, entry not ready or not a camera. Might activate via event later.`);
+                        logger.warn(`[TRS Full Sync] Could not activate first camera ${firstCamId} immediately, entry not ready or not a camera. Might activate via event later.`);
                         // It might get activated shortly after if the _syncEntity call was async (e.g., model load delay, though not camera)
                     }
                 }
 
                 if (!activated && cameraEntities.length === 0) { // Only critical if NO cameras exist
-                    console.error("[TRS Full Sync] CRITICAL: No cameras found in the scene after full sync!");
+                    logger.error("[TRS Full Sync] CRITICAL: No cameras found in the scene after full sync!");
                 }
             }
-            console.log(`[TRS] Full sync complete. ${this.entityObjects.size} objects in map.`);
+            logger.log(`[TRS] Full sync complete. ${this.entityObjects.size} objects in map.`);
         } catch (e) {
-             console.error("ThreeRenderSystem: Error during full scene sync:", e);
+             logger.error("ThreeRenderSystem: Error during full scene sync:", e);
              // Attempt to clear state to avoid broken visuals
              this.entityObjects.clear();
              this._creationInProgress.clear();
@@ -403,7 +404,7 @@ export class ThreeRenderSystem {
     }
 
     _syncEntity(entityId) {
-        // console.log(`[TRS] _syncEntity called for ID: ${entityId}`);
+        // logger.log(`[TRS] _syncEntity called for ID: ${entityId}`);
         if (!this.entityManager || !this.scene) { return; }
 
         const hasEngineEntity = this.entityManager.hasEntity(entityId);
@@ -423,31 +424,31 @@ export class ThreeRenderSystem {
 
         if (!intendedType) { if (currentEntry) { this._remove(entityId); } return; }
         if (!trs && (intendedType === 'mesh' || intendedType === 'model' || intendedType === 'camera' || (intendedType === 'light' && light?.type !== 'ambient'))) {
-            console.warn(`[TRS._syncEntity ${entityId}] Missing TransformComponent. Removing graphics.`);
+            logger.warn(`[TRS._syncEntity ${entityId}] Missing TransformComponent. Removing graphics.`);
             if (currentEntry) this._remove(entityId); return;
         }
 
         if (!currentEntry || currentEntry.type !== intendedType) {
             // --- MODIFICATION: Check if creation is already in progress ---
             if (this._creationInProgress.has(entityId)) {
-                // console.log(`[TRS _syncEntity ${entityId}] Creation already in progress, skipping new creation attempt.`);
+                // logger.log(`[TRS _syncEntity ${entityId}] Creation already in progress, skipping new creation attempt.`);
                 return; // Avoid duplicate creation attempts
             }
             // --- END MODIFICATION ---
-            // console.log(`[TRS] _syncEntity ${entityId}: Creating new object of type '${intendedType}'.`);
+            // logger.log(`[TRS] _syncEntity ${entityId}: Creating new object of type '${intendedType}'.`);
             if (currentEntry) this._remove(entityId);
             // --- MODIFICATION: Mark creation as in progress ---
             this._creationInProgress.add(entityId);
             // --- END MODIFICATION ---
             this._createObjectForEntity(entityId, intendedType, trs, rend, light, cam);
         } else {
-            // console.log(`[TRS] _syncEntity ${entityId}: Updating existing object of type '${intendedType}'.`);
+            // logger.log(`[TRS] _syncEntity ${entityId}: Updating existing object of type '${intendedType}'.`);
             this._updateObjectForEntity(entityId, currentEntry, trs, rend, light, cam);
         }
     }
 
     _createObjectForEntity(entityId, intendedType, trs, rend, light, cam) {
-        // console.log(`[TRS] _createObjectForEntity: Attempting to create '${intendedType}' for entity ${entityId}`);
+        // logger.log(`[TRS] _createObjectForEntity: Attempting to create '${intendedType}' for entity ${entityId}`);
         let newObjectPromise;
         try {
             switch(intendedType) {
@@ -457,7 +458,7 @@ export class ThreeRenderSystem {
                 case 'model':
                     if (!this.assetManager || !rend?.assetPath || typeof rend.assetPath !== 'string') {
                         const missing = !this.assetManager ? 'AssetManager' : 'assetPath';
-                        console.error(`[TRS Create Model ${entityId}] Cannot create 'Model': ${missing} missing or invalid.`, rend);
+                        logger.error(`[TRS Create Model ${entityId}] Cannot create 'Model': ${missing} missing or invalid.`, rend);
                         newObjectPromise = Promise.resolve(null);
                     } else {
                         const relativeAssetPath = rend.assetPath;
@@ -472,26 +473,26 @@ export class ThreeRenderSystem {
                                 return modelClone;
                             })
                             .catch(error => {
-                                console.error(`[TRS Create Model ${entityId}] Failed to load/process model asset "${relativeAssetPath}":`, error);
+                                logger.error(`[TRS Create Model ${entityId}] Failed to load/process model asset "${relativeAssetPath}":`, error);
                                 return null; // Resolve with null on failure
                             });
                     }
                     break;
                 default:
-                    console.warn(`[TRS._create] Unknown intendedType: ${intendedType}`);
+                    logger.warn(`[TRS._create] Unknown intendedType: ${intendedType}`);
                     newObjectPromise = Promise.resolve(null);
             }
 
             newObjectPromise.then(newObject => {
                 if (!newObject || !this.scene || !this.entityManager) {
-                    if (!newObject) console.warn(`[TRS Create ${intendedType} ${entityId}] Object creation failed or returned null.`);
+                    if (!newObject) logger.warn(`[TRS Create ${intendedType} ${entityId}] Object creation failed or returned null.`);
                     // --- MODIFICATION: Always clear flag on exit ---
                     this._creationInProgress.delete(entityId);
                     // --- END MODIFICATION ---
                     return;
                 }
                 if (!this.entityManager.hasEntity(entityId)) {
-                    console.log(`[TRS Create ${intendedType} ${entityId}] Entity removed before async creation completed. Discarding.`);
+                    logger.log(`[TRS Create ${intendedType} ${entityId}] Entity removed before async creation completed. Discarding.`);
                     this._dispose(newObject, intendedType);
                     // --- MODIFICATION: Always clear flag on exit ---
                     this._creationInProgress.delete(entityId);
@@ -501,7 +502,7 @@ export class ThreeRenderSystem {
                 // --- MODIFICATION: Removed redundant check, log kept for debug ---
                 if (this.entityObjects.has(entityId)) {
                      // This *shouldn't* happen now due to the _creationInProgress flag, but log if it does
-                     console.warn(`[TRS Create ${intendedType} ${entityId}] Object already exists (race condition despite flag?). Discarding new.`);
+                     logger.warn(`[TRS Create ${intendedType} ${entityId}] Object already exists (race condition despite flag?). Discarding new.`);
                      this._dispose(newObject, intendedType);
                      this._creationInProgress.delete(entityId); // Still clear flag
                      return;
@@ -521,14 +522,14 @@ export class ThreeRenderSystem {
                     }
                 }
             }).catch(error => {
-                 console.error(`[TRS Create ${intendedType} ${entityId}] Error in promise handling after creation:`, error);
+                 logger.error(`[TRS Create ${intendedType} ${entityId}] Error in promise handling after creation:`, error);
                  // --- MODIFICATION: Always clear flag on error ---
                  this._creationInProgress.delete(entityId);
                  // --- END MODIFICATION ---
             });
 
         } catch (e) {
-            console.error(`[TRS._create ${intendedType} ${entityId}] Synchronous error creating object:`, e);
+            logger.error(`[TRS._create ${intendedType} ${entityId}] Synchronous error creating object:`, e);
              // --- MODIFICATION: Always clear flag on error ---
              this._creationInProgress.delete(entityId);
              // --- END MODIFICATION ---
@@ -543,7 +544,7 @@ export class ThreeRenderSystem {
 
         // --- MODIFICATION: Added checks ---
         if (!obj || !obj.isObject3D) { // Check if it's a valid Three.js object
-            console.warn(`[TRS._update ${type} ${entityId}] Invalid or missing threeObject in entry. Cannot update.`);
+            logger.warn(`[TRS._update ${type} ${entityId}] Invalid or missing threeObject in entry. Cannot update.`);
             this._remove(entityId); // Remove broken entry
             return;
         }
@@ -576,7 +577,7 @@ export class ThreeRenderSystem {
                 if (cam.isActive && (!this.activeCameraObject || this.activeCameraEntityId !== entityId)) {
                     this._activateCamera(entityId, obj);
                 } else if (!cam.isActive && this.activeCameraEntityId === entityId) {
-                    console.warn(`[TRS Update ${entityId}] Active camera deactivated. Need fallback logic.`);
+                    logger.warn(`[TRS Update ${entityId}] Active camera deactivated. Need fallback logic.`);
                     if (this.orbitControls) this.orbitControls.enabled = false;
                     this.activeCameraEntityId = null;
                     this.activeCameraObject = null;
@@ -584,7 +585,7 @@ export class ThreeRenderSystem {
                 }
             }
         } catch (e) {
-             console.error(`[TRS._update ${type} ${entityId}] Error updating object:`, e);
+             logger.error(`[TRS._update ${type} ${entityId}] Error updating object:`, e);
         }
     }
 
@@ -598,7 +599,7 @@ export class ThreeRenderSystem {
                   if (!obj.position.equals(this._tempVec3.fromArray(trs.position))) {
                        obj.position.fromArray(trs.position); needsUpdate = true;
                   }
-             } else console.warn(`[TRS ApplyTransform ${obj.userData?.entityId}] Invalid position data:`, trs.position);
+             } else logger.warn(`[TRS ApplyTransform ${obj.userData?.entityId}] Invalid position data:`, trs.position);
 
              if (Array.isArray(trs.rotation) && trs.rotation.length === 3 && trs.rotation.every(n => typeof n === 'number')) {
                   this._tempEuler.set(
@@ -612,17 +613,17 @@ export class ThreeRenderSystem {
                   if (obj.quaternion.angleTo(this._tempQuaternion) > 1e-4) {
                        obj.quaternion.copy(this._tempQuaternion); needsUpdate = true;
                   }
-             } else console.warn(`[TRS ApplyTransform ${obj.userData?.entityId}] Invalid rotation data:`, trs.rotation);
+             } else logger.warn(`[TRS ApplyTransform ${obj.userData?.entityId}] Invalid rotation data:`, trs.rotation);
 
              if (Array.isArray(trs.scale) && trs.scale.length === 3 && trs.scale.every(n => typeof n === 'number')) {
                   if (!obj.scale.equals(this._tempVec3.fromArray(trs.scale))) {
                        obj.scale.fromArray(trs.scale); needsUpdate = true;
                   }
-             } else console.warn(`[TRS ApplyTransform ${obj.userData?.entityId}] Invalid scale data:`, trs.scale);
+             } else logger.warn(`[TRS ApplyTransform ${obj.userData?.entityId}] Invalid scale data:`, trs.scale);
 
              if (needsUpdate) obj.updateMatrixWorld(); // Update world matrix if local changed
          } catch (e) {
-              console.error(`[TRS ApplyTransform ${obj.userData?.entityId}] Error applying transform:`, e, trs);
+              logger.error(`[TRS ApplyTransform ${obj.userData?.entityId}] Error applying transform:`, e, trs);
          }
          // --- END MODIFICATION ---
     }
@@ -658,7 +659,7 @@ export class ThreeRenderSystem {
                  }
              }
          } catch(e) {
-              console.error(`[TRS ApplyRenderable ${obj.userData?.entityId}] Error applying properties:`, e, rend);
+              logger.error(`[TRS ApplyRenderable ${obj.userData?.entityId}] Error applying properties:`, e, rend);
          }
          // --- END MODIFICATION ---
     }
@@ -691,7 +692,7 @@ export class ThreeRenderSystem {
                   mat.metalness = metalness;
              }
          } catch(e) {
-             console.error(`[TRS UpdateMaterialProps] Error applying material props:`, e, rend);
+             logger.error(`[TRS UpdateMaterialProps] Error applying material props:`, e, rend);
          }
          // --- END MODIFICATION ---
     }
@@ -700,12 +701,12 @@ export class ThreeRenderSystem {
     _activateCamera(entityId, cameraObject) {
         // --- MODIFICATION: Added checks ---
         if (!this.renderer?.domElement || !cameraObject || !cameraObject.isCamera) {
-            console.warn(`[TRS] Attempted to activate invalid camera object for entity ${entityId}`);
+            logger.warn(`[TRS] Attempted to activate invalid camera object for entity ${entityId}`);
             return;
         }
         // --- END MODIFICATION ---
 
-        console.log(`[TRS] Activating camera for entity ${entityId}`);
+        logger.log(`[TRS] Activating camera for entity ${entityId}`);
         this.activeCameraEntityId = entityId;
         this.activeCameraObject = cameraObject;
 
@@ -719,14 +720,14 @@ export class ThreeRenderSystem {
                 this.orbitControls = new OrbitControls(this.activeCameraObject, this.renderer.domElement);
                 this.orbitControls.enableDamping = true;
                 this.orbitControls.dampingFactor = 0.05;
-                console.log('[TRS] OrbitControls created.');
+                logger.log('[TRS] OrbitControls created.');
             } else {
                 // Update object and DOM element if they changed (unlikely but possible)
                 if (this.orbitControls.object !== this.activeCameraObject) {
                     this.orbitControls.object = this.activeCameraObject;
                 }
                 if (this.orbitControls.domElement !== this.renderer.domElement) {
-                    console.warn("[TRS] OrbitControls DOM element changed? Re-attaching.");
+                    logger.warn("[TRS] OrbitControls DOM element changed? Re-attaching.");
                     this.orbitControls.dispose(); // Dispose old listeners
                     this.orbitControls = new OrbitControls(this.activeCameraObject, this.renderer.domElement);
                     this.orbitControls.enableDamping = true; this.orbitControls.dampingFactor = 0.05;
@@ -736,7 +737,7 @@ export class ThreeRenderSystem {
             this.orbitControls.enabled = (this.engine?.getMode() === 'editor');
             this.orbitControls.update(); // Initial update
         } catch (e) {
-             console.error("ThreeRenderSystem: Error creating or updating OrbitControls:", e);
+             logger.error("ThreeRenderSystem: Error creating or updating OrbitControls:", e);
              if(this.orbitControls) this.orbitControls.dispose();
              this.orbitControls = null; // Nullify on error
         }
@@ -746,17 +747,17 @@ export class ThreeRenderSystem {
     }
 
     _remove(entityId) {
-        // console.log(`[TRS] _remove called for entity ID: ${entityId}`);
+        // logger.log(`[TRS] _remove called for entity ID: ${entityId}`);
         const entry = this.entityObjects.get(entityId);
         if (entry) {
-            // console.log(`[TRS] Found entry for ${entityId}, disposing object type '${entry.type}'.`);
+            // logger.log(`[TRS] Found entry for ${entityId}, disposing object type '${entry.type}'.`);
             this._dispose(entry.threeObject, entry.type); // Dispose resources
             this.entityObjects.delete(entityId); // Remove from map
-            // console.log(`[TRS] Removed entry for ${entityId} from entityObjects map. Size now: ${this.entityObjects.size}`);
+            // logger.log(`[TRS] Removed entry for ${entityId} from entityObjects map. Size now: ${this.entityObjects.size}`);
 
             // If the removed entity was the active camera, deactivate it
             if (this.activeCameraEntityId === entityId) {
-                console.log(`[TRS] Active camera entity ${entityId} removed.`);
+                logger.log(`[TRS] Active camera entity ${entityId} removed.`);
                 this.activeCameraEntityId = null;
                 this.activeCameraObject = null;
                 if (this.orbitControls) {
@@ -768,7 +769,7 @@ export class ThreeRenderSystem {
                 // TODO: Need logic here to activate a different camera if available
             }
         } else {
-            // console.log(`[TRS] _remove: No entry found in entityObjects map for ID: ${entityId}`);
+            // logger.log(`[TRS] _remove: No entry found in entityObjects map for ID: ${entityId}`);
         }
     }
 
@@ -821,8 +822,8 @@ export class ThreeRenderSystem {
 
     _makePrimitiveMesh(trs, rend) {
         // --- MODIFICATION: Added validation ---
-        if (!trs || !rend) { console.warn("[TRS._makePrimitiveMesh] Missing transform or renderable component data."); return null; }
-        if (!this._isValidTransformData(trs)) { console.warn("[TRS._makePrimitiveMesh] Invalid transform data:", trs); return null; }
+        if (!trs || !rend) { logger.warn("[TRS._makePrimitiveMesh] Missing transform or renderable component data."); return null; }
+        if (!this._isValidTransformData(trs)) { logger.warn("[TRS._makePrimitiveMesh] Invalid transform data:", trs); return null; }
         // --- END MODIFICATION ---
 
         const type = rend.type ?? engineConfig.renderable.type ?? 'Cube';
@@ -835,7 +836,7 @@ export class ThreeRenderSystem {
                 case 'Cube': case 'Ground': geometry = new THREE.BoxGeometry(1, 1, 1); break;
                 case 'Sphere': geometry = new THREE.SphereGeometry(0.5, 32, 16); break;
                 default:
-                    console.warn(`[TRS] Unknown primitive type '${type}'. Defaulting to Cube.`);
+                    logger.warn(`[TRS] Unknown primitive type '${type}'. Defaulting to Cube.`);
                     geometry = new THREE.BoxGeometry(1, 1, 1); break;
             }
             if (!geometry) throw new Error("Geometry creation failed.");
@@ -849,7 +850,7 @@ export class ThreeRenderSystem {
 
             return mesh;
         } catch (e) {
-            console.error(`[TRS MakePrimitive ${type}] Error creating mesh:`, e);
+            logger.error(`[TRS MakePrimitive ${type}] Error creating mesh:`, e);
             geometry?.dispose(); // Dispose geometry if created before error
             return null;
         }
@@ -858,7 +859,7 @@ export class ThreeRenderSystem {
     _updatePrimitiveMesh(mesh, rend) {
         // --- MODIFICATION: Added validation ---
         if (!mesh || !mesh.isMesh || !rend) {
-            console.warn("[TRS._updatePrimitiveMesh] Invalid mesh object or missing renderable data.", {mesh, rend});
+            logger.warn("[TRS._updatePrimitiveMesh] Invalid mesh object or missing renderable data.", {mesh, rend});
             return;
         }
         // --- END MODIFICATION ---
@@ -868,10 +869,10 @@ export class ThreeRenderSystem {
 
     _makeLight(trs, lt) {
         // --- MODIFICATION: Added validation ---
-        if (!lt) { console.warn("[TRS._makeLight] Missing light component data."); return null; }
+        if (!lt) { logger.warn("[TRS._makeLight] Missing light component data."); return null; }
         const type = lt.type ?? engineConfig.light.type ?? 'directional';
         if (type !== 'ambient' && (!trs || !this._isValidTransformData(trs))) {
-             console.warn(`[TRS._makeLight ${type}] Missing or invalid transform component data.`, trs);
+             logger.warn(`[TRS._makeLight ${type}] Missing or invalid transform component data.`, trs);
              // Allow creation for ambient, otherwise fail
              if (type !== 'ambient') return null;
         }
@@ -911,7 +912,7 @@ export class ThreeRenderSystem {
             }
             return light;
         } catch (e) {
-             console.error(`[TRS MakeLight ${type}] Error creating light:`, e);
+             logger.error(`[TRS MakeLight ${type}] Error creating light:`, e);
              return null;
         }
     }
@@ -919,13 +920,13 @@ export class ThreeRenderSystem {
     _updateLight(light, trs, lt) {
         // --- MODIFICATION: Added validation ---
         if (!light || !light.isLight || !lt) {
-             console.warn("[TRS._updateLight] Invalid light object or missing component data.", {light, lt});
+             logger.warn("[TRS._updateLight] Invalid light object or missing component data.", {light, lt});
              return;
         }
         const type = lt.type ?? engineConfig.light.type ?? 'directional';
         // Check if light type matches component type (cannot change light type after creation)
         if ((type === 'ambient' && !light.isAmbientLight) || (type === 'directional' && !light.isDirectionalLight) || (type === 'point' && !light.isPointLight)) {
-            console.warn(`[TRS UpdateLight ${light.userData?.entityId}] Light type changed from ${light.type} to ${type}. Requires recreation (manual for now).`);
+            logger.warn(`[TRS UpdateLight ${light.userData?.entityId}] Light type changed from ${light.type} to ${type}. Requires recreation (manual for now).`);
             return; // Cannot update type, needs recreate
         }
         // --- END MODIFICATION ---
@@ -960,7 +961,7 @@ export class ThreeRenderSystem {
                  this._applyTransform(light, trs); // Use helper
             }
         } catch (e) {
-             console.error(`[TRS UpdateLight ${light.userData?.entityId}] Error updating light properties:`, e, lt);
+             logger.error(`[TRS UpdateLight ${light.userData?.entityId}] Error updating light properties:`, e, lt);
         }
     }
 
@@ -982,9 +983,9 @@ export class ThreeRenderSystem {
 
     _makeCamera(trs, cam) {
         // --- MODIFICATION: Added validation ---
-        if (!trs || !cam) { console.warn("[TRS._makeCamera] Missing transform or camera component data."); return null; }
-        if (!this._isValidTransformData(trs)) { console.warn("[TRS._makeCamera] Invalid transform data structure:", trs); return null; }
-        if (!this.container) { console.warn("[TRS._makeCamera] Container missing, cannot calculate aspect ratio."); return null; }
+        if (!trs || !cam) { logger.warn("[TRS._makeCamera] Missing transform or camera component data."); return null; }
+        if (!this._isValidTransformData(trs)) { logger.warn("[TRS._makeCamera] Invalid transform data structure:", trs); return null; }
+        if (!this.container) { logger.warn("[TRS._makeCamera] Container missing, cannot calculate aspect ratio."); return null; }
         // --- END MODIFICATION ---
 
         const aspect = (this.container.clientWidth ?? 1) / (this.container.clientHeight ?? 1);
@@ -1009,7 +1010,7 @@ export class ThreeRenderSystem {
              camera.updateProjectionMatrix(); // Initial update
              return camera;
         } catch (e) {
-             console.error(`[TRS MakeCamera ${type}] Error creating camera:`, e);
+             logger.error(`[TRS MakeCamera ${type}] Error creating camera:`, e);
              // Fallback to default perspective camera if creation failed
              if (!camera) camera = new THREE.PerspectiveCamera(engineConfig.camera.fov, aspect, near, far);
              camera.position.set(0,1,5); camera.lookAt(0,0,0); // Default position/lookAt
@@ -1021,10 +1022,10 @@ export class ThreeRenderSystem {
     _updateCamera(camera, cam) {
         // --- MODIFICATION: Added validation ---
         if (!camera || !camera.isCamera || !cam) {
-            console.warn("[TRS._updateCamera] Invalid camera object or missing component data.", {camera, cam});
+            logger.warn("[TRS._updateCamera] Invalid camera object or missing component data.", {camera, cam});
             return;
         }
-        if (!this.container) { console.warn("[TRS._updateCamera] Container missing, cannot calculate aspect ratio."); return; }
+        if (!this.container) { logger.warn("[TRS._updateCamera] Container missing, cannot calculate aspect ratio."); return; }
         // --- END MODIFICATION ---
 
         try {
@@ -1056,7 +1057,7 @@ export class ThreeRenderSystem {
             }
             // Transform is handled by _updateObjectForEntity -> _applyTransform
         } catch (e) {
-             console.error(`[TRS UpdateCamera ${camera.userData?.entityId}] Error updating camera properties:`, e, cam);
+             logger.error(`[TRS UpdateCamera ${camera.userData?.entityId}] Error updating camera properties:`, e, cam);
         }
     }
 
@@ -1069,7 +1070,7 @@ export class ThreeRenderSystem {
     }
 
     cleanup() {
-        console.log("Cleaning up ThreeRenderSystem...");
+        logger.log("Cleaning up ThreeRenderSystem...");
         // Unsubscribe from ECS events
         if (this.eventEmitter) {
             this.eventEmitter.off('entityCreated'); this.eventEmitter.off('componentAdded');
@@ -1081,10 +1082,10 @@ export class ThreeRenderSystem {
         window.removeEventListener('resize', this._boundOnResize);
         if (this.renderer?.domElement) {
             this.renderer.domElement.removeEventListener('click', this._boundOnClick);
-            // console.log("[TRS] Cleanup: Removed _onClick listener.");
+            // logger.log("[TRS] Cleanup: Removed _onClick listener.");
         }
         window.removeEventListener('click', this._boundWindowClickCapture, true);
-        // console.log("[TRS] Cleanup: Removed window click capture listener.");
+        // logger.log("[TRS] Cleanup: Removed window click capture listener.");
 
         // Dispose THREE resources
         this.entityObjects.forEach(entry => this._dispose(entry.threeObject, entry.type));
@@ -1104,6 +1105,6 @@ export class ThreeRenderSystem {
         this.entityManager = null; this.eventEmitter = null; this.engine = null;
         this.assetManager = null; this.container = null; this.activeCameraEntityId = null;
         this.#visible = false; // Reset visibility state
-        console.log("ThreeRenderSystem Cleaned Up.");
+        logger.log("ThreeRenderSystem Cleaned Up.");
     }
 }
